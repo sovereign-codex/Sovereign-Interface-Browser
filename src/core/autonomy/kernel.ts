@@ -1,3 +1,5 @@
+import { recordKernelError } from '../memory/stm';
+
 const generateSessionId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -63,6 +65,7 @@ export const logWarn = (source: string, message: string, data?: unknown): void =
 
 export const logError = (source: string, message: string, data?: unknown): void => {
   appendLog(createLogEntry('error', source, message, data));
+  recordKernelError(message, { source, data });
 };
 
 export const logDebug = (source: string, message: string, data?: unknown): void => {
