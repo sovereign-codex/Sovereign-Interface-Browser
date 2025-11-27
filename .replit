@@ -1,7 +1,2 @@
 run = "npm run start"
-entrypoint = "index.html"
 language = "nodejs"
-modules = ["nodejs-18", "web", "nix"]
-
-[nix]
-channel = "stable-25_05"
