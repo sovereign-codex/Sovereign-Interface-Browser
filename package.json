@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --open",
     "build": "vite build",
+    "start": "vite preview --port 5173",
     "preview": "vite preview"
   },
   "dependencies": {

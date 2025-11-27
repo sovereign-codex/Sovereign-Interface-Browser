@@ -2,7 +2,7 @@ export class SIBStorage {
   private memoryStore = new Map<string, string>();
   private readonly namespace: string;
 
-  constructor(namespace = 'sib-core') {
+  constructor(namespace = 'sibcore_v1') {
     this.namespace = namespace;
   }
 
