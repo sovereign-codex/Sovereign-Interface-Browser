@@ -1,1 +1,11 @@
-{}
+{
+  "appName": "SIB-core",
+  "defaultManifestUrl": "/sios-manifest.json",
+  "omnibar": {
+    "placeholder": "Ask Tyme, invoke AVOT, or type /help"
+  },
+  "guardian": {
+    "enabled": true,
+    "severity": "flag"
+  }
+}
