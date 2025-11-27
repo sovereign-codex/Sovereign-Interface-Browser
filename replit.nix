@@ -1,6 +1,6 @@
 { pkgs }: {
   deps = [
-    pkgs.nodejs_20
-    pkgs.pnpm
+    pkgs.nodejs_18
+    pkgs.vite
   ];
 }

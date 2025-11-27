@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sovereign Interface Browser icon">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e0ff" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="48" ry="48" fill="#0a0a0a"/>
+  <circle cx="256" cy="256" r="176" fill="none" stroke="url(#gradient)" stroke-width="28" />
+  <circle cx="256" cy="256" r="96" fill="#0a0a0a" stroke="#00e0ff" stroke-width="18" />
+  <path d="M256 140c-10 0-18 8-18 18v68h-68c-10 0-18 8-18 18s8 18 18 18h68v68c0 10 8 18 18 18s18-8 18-18v-68h68c10 0 18-8 18-18s-8-18-18-18h-68v-68c0-10-8-18-18-18z" fill="url(#gradient)" />
+</svg>

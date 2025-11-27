@@ -3,6 +3,8 @@
   "name": "SIB Local Manifest",
   "version": "1.0.0",
   "description": "Local development manifest for the Sovereign Interface Browser",
+  "scope": "/",
+  "icon": "/icons/icon.svg",
   "operations": [
     {
       "id": "diag.ping",

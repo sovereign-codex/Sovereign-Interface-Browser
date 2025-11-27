@@ -1,6 +1,7 @@
 {
   "appName": "SIB-core",
   "defaultManifestUrl": "/sios-manifest.json",
+  "pwa": true,
   "omnibar": {
     "placeholder": "Ask Tyme, invoke AVOT, or type /help"
   },
