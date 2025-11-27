@@ -6,7 +6,7 @@ type Props = {
 };
 
 export const RecoveryShell: React.FC<Props> = ({ error }) => {
-  const theme = useSovereignTheme();
+  const { theme } = useSovereignTheme();
   return (
     <div
       style={{

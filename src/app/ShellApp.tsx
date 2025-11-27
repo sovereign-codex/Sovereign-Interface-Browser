@@ -14,32 +14,13 @@ import { Omnibar } from '../ui/Omnibar';
 import { TymePanel } from '../ui/TymePanel';
 import { Viewport } from '../ui/Viewport';
 import { HouseOfTymeRadial } from '../ui/HouseOfTymeRadial';
-
-const shellStyle: React.CSSProperties = {
-  fontFamily: 'Inter, system-ui, sans-serif',
-  background: '#0b0c10',
-  color: '#e8f1ff',
-  minHeight: '100vh',
-  display: 'flex',
-  flexDirection: 'column'
-};
-
-const mainLayout: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '2fr 1fr',
-  gap: '16px',
-  padding: '16px'
-};
-
-const headerStyle: React.CSSProperties = {
-  padding: '16px',
-  borderBottom: '1px solid #1f2833',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center'
-};
+import { useSovereignTheme } from '../sib/ui/SovereignTheme';
+import { AutonomyHud } from '../ui/AutonomyHud';
+import { CommandContext } from '../core/commands/types';
+import { getKernelState } from '../core/autonomy/kernel';
 
 export const ShellApp: React.FC = () => {
+  const { theme, toggleTheme } = useSovereignTheme();
   const eventBus = useMemo(() => new EventBus<AppEvents>(), []);
   const sessionManager = useMemo(() => new SessionManager(), []);
   const guardian = useMemo(() => new GuardianLayer(), []);
@@ -54,6 +35,13 @@ export const ShellApp: React.FC = () => {
   const [manifest, setManifest] = useState<SIOSManifest | null>(null);
   const [identity, setIdentity] = useState<IdentityProfile>(() => identityVault.getActiveIdentity());
   const [ready, setReady] = useState(false);
+  const commandContext = useMemo<CommandContext>(
+    () => ({
+      toggleTheme,
+      getKernelState,
+    }),
+    [toggleTheme],
+  );
 
   const router = useMemo(() => new CommandRouter(kodex, avot, guardian, sessionManager, eventBus), [avot, eventBus, guardian, kodex, sessionManager]);
 
@@ -79,19 +67,46 @@ export const ShellApp: React.FC = () => {
     };
   }, [avot, eventBus, kodex, kodexLink, sessionManager]);
 
-  const handleCommand = async (command: string): Promise<void> => {
-    if (!command.trim()) return;
-    await router.handleCommand(command);
-  };
-
   const latestResult: CommandResult | undefined = history[0]?.result;
+  const shellStyle: React.CSSProperties = useMemo(
+    () => ({
+      fontFamily: 'Inter, system-ui, sans-serif',
+      background: theme.background,
+      color: theme.text,
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+    }),
+    [theme.background, theme.text],
+  );
+
+  const mainLayout: React.CSSProperties = useMemo(
+    () => ({
+      display: 'grid',
+      gridTemplateColumns: '2fr 1fr',
+      gap: '16px',
+      padding: '16px',
+    }),
+    [],
+  );
+
+  const headerStyle: React.CSSProperties = useMemo(
+    () => ({
+      padding: '16px',
+      borderBottom: `1px solid ${theme.accentSoft}`,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    }),
+    [theme.accentSoft],
+  );
 
   return (
     <div style={shellStyle}>
       <header style={headerStyle}>
         <div>
           <div style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{config.appName}</div>
-          <div style={{ color: '#66fcf1', fontSize: 12 }}>Session {sessionManager.sessionId}</div>
+          <div style={{ color: theme.accent, fontSize: 12 }}>Session {sessionManager.sessionId}</div>
         </div>
         <div style={{ fontSize: 12, color: ready ? '#45a29e' : '#c5c6c7' }}>{ready ? 'Ready' : 'Booting manifest...'}</div>
       </header>
@@ -99,13 +114,14 @@ export const ShellApp: React.FC = () => {
       <main style={mainLayout}>
         <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Viewport entries={history} latestAudit={auditLog} />
-          <Omnibar placeholder={config.omnibar.placeholder} disabled={!ready} onSubmit={handleCommand} />
+          <Omnibar placeholder={config.omnibar.placeholder} disabled={!ready} context={commandContext} />
         </section>
         <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <TymePanel identity={identity} manifest={manifest} onRefreshIdentity={() => setIdentity(identityVault.getActiveIdentity())} />
           <HouseOfTymeRadial sessionId={sessionManager.sessionId} status={latestResult?.status ?? 'idle'} />
         </section>
       </main>
+      <AutonomyHud />
     </div>
   );
 };
