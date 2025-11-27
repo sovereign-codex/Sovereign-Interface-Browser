@@ -7,7 +7,8 @@
     "dev": "vite --open",
     "build": "vite build",
     "start": "vite preview --port 5173",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sib:doctor": "echo \"SIB-core ok\""
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -19,5 +20,14 @@
     "@vitejs/plugin-react-swc": "^3.7.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "sibMeta": {
+    "role": "sovereign-interface-browser",
+    "kernel": "SIB-Core",
+    "latticeReady": true,
+    "lastFoundationUpgrade": "2025-11-27T17:10:43+00:00"
   }
 }

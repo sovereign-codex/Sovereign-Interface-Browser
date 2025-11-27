@@ -1,17 +1,28 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
+// Sovereign Interface Browser – Vite configuration
 export default defineConfig({
   plugins: [react()],
-  base: '/',
   root: '.',
   publicDir: 'public',
-  server: {
-    port: 5173,
-    host: '0.0.0.0'
-  },
   build: {
     outDir: 'dist',
-    copyPublicDir: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom']
+        }
+      }
+    }
+  },
+  server: {
+    port: 5173,
+    strictPort: true
+  },
+  preview: {
+    port: 5173,
+    strictPort: true
   }
 });
