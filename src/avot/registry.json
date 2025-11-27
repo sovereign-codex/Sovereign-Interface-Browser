@@ -1,1 +1,23 @@
-{"agents":[]}
+[
+  {
+    "id": "diag.ping",
+    "name": "Ping",
+    "description": "Return a static heartbeat payload for diagnostics.",
+    "inputs": [],
+    "handler": "ping"
+  },
+  {
+    "id": "manifest.echo",
+    "name": "Echo Manifest",
+    "description": "Return the current manifest contents for inspection.",
+    "inputs": [],
+    "handler": "echoManifest"
+  },
+  {
+    "id": "help.commands",
+    "name": "List Commands",
+    "description": "Enumerate the available AVOT operations and manifest entries.",
+    "inputs": [],
+    "handler": "listOperations"
+  }
+]

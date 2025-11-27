@@ -1,4 +1,10 @@
 {
- "name":"SIB","short_name":"SIB","start_url":"/","display":"standalone",
- "icons":[]
+  "name": "SIB-core",
+  "short_name": "SIB",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090909",
+  "theme_color": "#0ef",
+  "description": "Sovereign Interface Browser core shell (Tyme)",
+  "icons": []
 }

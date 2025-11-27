@@ -1,0 +1,20 @@
+{
+  "id": "sib-core-local",
+  "name": "SIB Local Manifest",
+  "version": "1.0.0",
+  "description": "Local development manifest for the Sovereign Interface Browser",
+  "operations": [
+    {
+      "id": "diag.ping",
+      "name": "Ping",
+      "description": "Return a heartbeat payload for diagnostics.",
+      "inputs": []
+    },
+    {
+      "id": "manifest.echo",
+      "name": "Echo Manifest",
+      "description": "Return the current manifest metadata.",
+      "inputs": []
+    }
+  ]
+}
