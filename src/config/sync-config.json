@@ -1,0 +1,28 @@
+{
+  "targets": [
+    {
+      "id": "tyme-core",
+      "name": "Tyme Core",
+      "manifestUrl": "https://example.com/tyme-core/manifest.json",
+      "type": "tyme-core"
+    },
+    {
+      "id": "avot-core",
+      "name": "AVOT Core",
+      "manifestUrl": "https://example.com/avot-core/manifest.json",
+      "type": "avot-core"
+    },
+    {
+      "id": "sios-manifest",
+      "name": "SIOS Manifest",
+      "manifestUrl": "/sios-manifest.json",
+      "type": "sios"
+    },
+    {
+      "id": "future-repo",
+      "name": "Future Repository",
+      "manifestUrl": "https://example.com/future/manifest.json",
+      "type": "future"
+    }
+  ]
+}
