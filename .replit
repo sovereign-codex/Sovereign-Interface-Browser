@@ -1,12 +1,6 @@
 run = "npm run start"
+entrypoint = "index.js"
+hidden = [".cache"]
+env = { }
+nixFile = "replit.nix"
 language = "nodejs"
-
-[env]
-NODE_ENV = "production"
-
-[interpreter]
-command = ["node"]
-
-[unitTest]
-language = "nodejs"
-run = "npm test"
