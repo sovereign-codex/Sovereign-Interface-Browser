@@ -1,3 +1,6 @@
+import { bridgeStatus } from '../../bridge/avot';
+import { createTask, inspectTask, listTasks, cancelTask } from '../tasks/engine';
+import { getShortTermMemory } from '../memory/stm';
 import { getKernelState, logInfo } from '../autonomy/kernel';
 import { CommandDefinition, CommandHandlerResult } from './types';
 
@@ -85,4 +88,72 @@ const logTailCommand: CommandDefinition = {
   },
 };
 
-[helpCommand, pingCommand, snapshotCommand, toggleThemeCommand, logTailCommand].forEach(registerCommand);
+const taskNewCommand: CommandDefinition = {
+  id: 'task.new',
+  description: 'Create a new autonomy task',
+  handler: (args) => {
+    const description = args.rawArgs.trim();
+    if (!description) {
+      return { status: 'error', message: 'Description is required' };
+    }
+    const task = createTask(description);
+    return { status: 'ok', message: `Task created (${task.id})`, payload: task };
+  },
+};
+
+const taskListCommand: CommandDefinition = {
+  id: 'task.list',
+  description: 'List current autonomy tasks',
+  handler: () => ({ status: 'ok', message: 'Current tasks', payload: listTasks() }),
+};
+
+const taskInspectCommand: CommandDefinition = {
+  id: 'task.inspect',
+  description: 'Inspect a specific task by id',
+  handler: (args) => {
+    const id = args.args[0];
+    if (!id) return { status: 'error', message: 'Task id required' };
+    const task = inspectTask(id);
+    if (!task) return { status: 'error', message: `Task not found: ${id}` };
+    return { status: 'ok', message: `Task ${id}`, payload: task };
+  },
+};
+
+const taskCancelCommand: CommandDefinition = {
+  id: 'task.cancel',
+  description: 'Cancel a queued or running task',
+  handler: (args) => {
+    const id = args.args[0];
+    if (!id) return { status: 'error', message: 'Task id required' };
+    const ok = cancelTask(id);
+    return ok
+      ? { status: 'ok', message: `Task ${id} cancelled` }
+      : { status: 'error', message: `Unable to cancel task ${id}` };
+  },
+};
+
+const memoryStmCommand: CommandDefinition = {
+  id: 'memory.stm',
+  description: 'Inspect short-term memory cache',
+  handler: () => ({ status: 'ok', message: 'STM snapshot', payload: getShortTermMemory() }),
+};
+
+const bridgeStatusCommand: CommandDefinition = {
+  id: 'bridge.status',
+  description: 'Show AVOT bridge status',
+  handler: () => ({ status: 'ok', message: 'Bridge status', payload: bridgeStatus() }),
+};
+
+[
+  helpCommand,
+  pingCommand,
+  snapshotCommand,
+  toggleThemeCommand,
+  logTailCommand,
+  taskNewCommand,
+  taskListCommand,
+  taskInspectCommand,
+  taskCancelCommand,
+  memoryStmCommand,
+  bridgeStatusCommand,
+].forEach(registerCommand);

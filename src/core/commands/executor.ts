@@ -1,4 +1,5 @@
 import { logError, logInfo, recordCommandExecution } from '../autonomy/kernel';
+import { recordCommandMemory } from '../memory/stm';
 import { getCommand } from './registry';
 import { CommandArgs, CommandContext, CommandHandlerResult } from './types';
 
@@ -46,6 +47,8 @@ export const executeCommand = async (
   } else {
     logInfo('kernel', summary, { durationMs });
   }
+
+  recordCommandMemory(commandId, result.status);
 
   return result;
 };
