@@ -9,6 +9,7 @@ import { IntentSignal } from '../core/intent/types';
 import { getShortTermMemory, ShortTermMemorySnapshot } from '../core/memory/stm';
 import { getViolations, violationSummary } from '../core/memory/violations';
 import { taskMetrics } from '../core/tasks/engine';
+import { getStatusSnapshot, SucStatusSnapshot } from '../core/autonomy/sucController';
 import { useSovereignTheme } from '../sib/ui/SovereignTheme';
 
 const formatDuration = (ms: number): string => {
@@ -42,6 +43,7 @@ export const AutonomyHud: React.FC = () => {
   const [reflections, setReflections] = useState<Reflection[]>(() => getRecentReflections(1));
   const [violationCounts, setViolationCounts] = useState(() => violationSummary());
   const [violations, setViolations] = useState(() => getViolations());
+  const [sucStatus, setSucStatus] = useState<SucStatusSnapshot>(() => getStatusSnapshot());
   const [intentsOpen, setIntentsOpen] = useState(true);
   const [goalsOpen, setGoalsOpen] = useState(true);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +59,7 @@ export const AutonomyHud: React.FC = () => {
       setReflections(getRecentReflections(1));
       setViolationCounts(violationSummary());
       setViolations(getViolations());
+      setSucStatus(getStatusSnapshot());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -88,6 +91,7 @@ export const AutonomyHud: React.FC = () => {
     if (violationCounts.medium > 0) return '#f8c471';
     return '#7cf29c';
   }, [violationCounts.high, violationCounts.medium]);
+  const pendingBadgeColor = sucStatus.pendingCount > 0 ? theme.accent : theme.textSoft;
 
   return (
     <div
@@ -181,6 +185,43 @@ export const AutonomyHud: React.FC = () => {
                 <div style={{ fontSize: 12, color: theme.textSoft }}>{relativeTime(state.lastCommand?.at)}</div>
               </div>
             </div>
+          </div>
+
+          <div
+            style={{
+              padding: '12px 14px',
+              borderBottom: `1px solid ${theme.accentSoft}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              background: 'rgba(255,255,255,0.02)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13 }}>
+                <span>Sovereign Updates</span>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    background: pendingBadgeColor,
+                    boxShadow: sucStatus.pendingCount > 0 ? '0 0 8px rgba(255,255,255,0.25)' : 'none',
+                  }}
+                  title={sucStatus.pendingCount > 0 ? 'Updates pending' : 'Up to date'}
+                />
+              </div>
+              <div style={{ fontSize: 12, color: theme.textSoft }}>v{sucStatus.systemVersion}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: theme.textSoft }}>
+              <div>
+                Applied: <span style={{ color: theme.text }}>{sucStatus.appliedCount}</span>
+              </div>
+              <div>
+                Pending: <span style={{ color: theme.text }}>{sucStatus.pendingCount}</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: theme.textSoft }}>Last check: {relativeTime(sucStatus.lastUpdateCheckAt)}</div>
           </div>
 
           {latestReflection && (

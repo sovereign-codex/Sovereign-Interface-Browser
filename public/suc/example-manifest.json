@@ -1,0 +1,16 @@
+{
+  "id": "SUC-EXAMPLE-0001",
+  "version": "0.1.0",
+  "title": "Example SUC Manifest",
+  "description": "Demonstration update manifest for SIB.",
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "author": "Tyme",
+  "scope": ["docs"],
+  "affects": ["sib.docs"],
+  "requires": [],
+  "incompatibleWith": [],
+  "safetyLevel": "safe",
+  "migrationNotes": [
+    "This is an example of how real updates will describe their intent."
+  ]
+}

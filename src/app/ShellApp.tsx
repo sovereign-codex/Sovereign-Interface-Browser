@@ -18,6 +18,7 @@ import { useSovereignTheme } from '../sib/ui/SovereignTheme';
 import { AutonomyHud } from '../ui/AutonomyHud';
 import { CommandContext } from '../core/commands/types';
 import { getKernelState } from '../core/autonomy/kernel';
+import { refreshStatus as refreshSucStatus } from '../core/autonomy/sucController';
 
 export const ShellApp: React.FC = () => {
   const { theme, toggleTheme } = useSovereignTheme();
@@ -52,6 +53,7 @@ export const ShellApp: React.FC = () => {
     ];
 
     const init = async (): Promise<void> => {
+      refreshSucStatus().catch(() => undefined);
       const source = (import.meta.env.VITE_KODEX_SOURCE as string | undefined) ?? 'local';
       const loadedManifest = await kodexLink.fetchManifest(source);
       kodexLink.attach(loadedManifest, avot, kodex);
