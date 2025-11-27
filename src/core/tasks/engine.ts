@@ -1,4 +1,6 @@
 import { logError, logInfo } from '../autonomy/kernel';
+import { analyzeTask } from '../intent/engine';
+import { handleGuardrailViolation, checkTask } from '../sovereign/guardrails';
 import { recordTaskCompletion } from '../memory/stm';
 import { dequeueTask, enqueueTask, queuedTaskIds, removeFromQueue } from './queue';
 import { startWorker } from './worker';
@@ -60,6 +62,8 @@ export const createTask = (description: string, meta?: unknown): Task => {
 
   tasks.set(task.id, task);
   enqueueTask(task.id);
+  analyzeTask(task);
+  handleGuardrailViolation(checkTask(task));
   logInfo('tasks.engine', `Queued task ${task.id}`, { description, meta });
   return task;
 };
