@@ -1,0 +1,1 @@
+console.log('SIB-core full init');
