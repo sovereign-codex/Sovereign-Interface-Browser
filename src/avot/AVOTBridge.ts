@@ -4,7 +4,7 @@ import { CommandIntent, CommandResult, SIOSManifest } from '../kodex/KodexTypes'
 
 export class AVOTBridge {
   private manifest?: SIOSManifest;
-  private readonly registry: AVOTRegistryEntry[] = registry as AVOTRegistryEntry[];
+  private registry: AVOTRegistryEntry[] = registry as AVOTRegistryEntry[];
 
   constructor(manifest?: SIOSManifest) {
     if (manifest) {
@@ -14,6 +14,10 @@ export class AVOTBridge {
 
   setManifest(manifest: SIOSManifest): void {
     this.manifest = manifest;
+  }
+
+  setRegistry(entries: AVOTRegistryEntry[]): void {
+    this.registry = entries;
   }
 
   getRegistry(): AVOTRegistryEntry[] {

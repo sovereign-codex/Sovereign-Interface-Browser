@@ -1,6 +1,7 @@
 import { AVOTBridge } from '../avot/AVOTBridge';
 import { GuardianLayer } from '../guardian/GuardianLayer';
 import { KodexCore } from '../kodex/KodexCore';
+import { CommandParser } from '../kodex/CommandParser';
 import { CommandResult, GuardianAudit } from '../kodex/KodexTypes';
 import { EventBus } from './EventBus';
 import { SessionEntry, SessionManager } from './SessionManager';
@@ -17,12 +18,15 @@ export class CommandRouter {
     private readonly avot: AVOTBridge,
     private readonly guardian: GuardianLayer,
     private readonly sessions: SessionManager,
-    private readonly bus: EventBus<AppEvents>
+    private readonly bus: EventBus<AppEvents>,
+    private readonly parser = new CommandParser()
   ) {}
 
   async handleCommand(raw: string): Promise<SessionEntry> {
     this.bus.emit('command', { input: raw });
-    const audit = this.guardian.auditCommand(raw);
+    const parsedIntent = this.parser.parse(raw, { manifest: this.kodex.getManifest() });
+    const intent = parsedIntent ?? (await this.kodex.resolveIntent(raw));
+    const audit = this.guardian.auditCommand(raw, intent);
     this.bus.emit('audit', { command: raw, audit });
 
     if (audit.decision === 'block') {
@@ -35,8 +39,6 @@ export class CommandRouter {
       this.bus.emit('result', { entry: blockedEntry });
       return blockedEntry;
     }
-
-    const intent = await this.kodex.resolveIntent(raw);
     const result = await this.avot.invoke(intent, raw);
     if (audit.decision === 'flag') {
       result.auditTrail = [...(result.auditTrail ?? []), audit.reason];

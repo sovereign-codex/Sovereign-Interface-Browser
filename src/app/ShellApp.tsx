@@ -8,6 +8,7 @@ import { GPTClient } from '../gpt/GPTClient';
 import { GuardianLayer } from '../guardian/GuardianLayer';
 import { IdentityProfile, IdentityVault } from '../identity/IdentityVault';
 import { KodexCore } from '../kodex/KodexCore';
+import { KodexLink } from '../kodex/KodexLink';
 import { CommandResult, GuardianAudit, SIOSManifest } from '../kodex/KodexTypes';
 import { Omnibar } from '../ui/Omnibar';
 import { TymePanel } from '../ui/TymePanel';
@@ -44,6 +45,7 @@ export const ShellApp: React.FC = () => {
   const guardian = useMemo(() => new GuardianLayer(), []);
   const gptClient = useMemo(() => new GPTClient(), []);
   const kodex = useMemo(() => new KodexCore(undefined, gptClient), [gptClient]);
+  const kodexLink = useMemo(() => new KodexLink(), []);
   const avot = useMemo(() => new AVOTBridge(), []);
   const identityVault = useMemo(() => new IdentityVault(), []);
 
@@ -62,12 +64,12 @@ export const ShellApp: React.FC = () => {
     ];
 
     const init = async (): Promise<void> => {
-      await kodex.initialize();
-      const loadedManifest = kodex.getManifest();
-      if (loadedManifest) {
-        setManifest(loadedManifest);
-        avot.setManifest(loadedManifest);
-      }
+      const source = (import.meta.env.VITE_KODEX_SOURCE as string | undefined) ?? 'local';
+      const loadedManifest = await kodexLink.fetchManifest(source);
+      kodexLink.attach(loadedManifest, avot, kodex);
+      const registry = await kodexLink.fetchAVOTRegistry(source);
+      avot.setRegistry(registry);
+      setManifest(loadedManifest);
       setReady(true);
     };
 
@@ -75,7 +77,7 @@ export const ShellApp: React.FC = () => {
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
-  }, [avot, eventBus, kodex, sessionManager]);
+  }, [avot, eventBus, kodex, kodexLink, sessionManager]);
 
   const handleCommand = async (command: string): Promise<void> => {
     if (!command.trim()) return;
