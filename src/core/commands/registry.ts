@@ -1,6 +1,8 @@
 import { bridgeStatus, getClusterTopology, pingNode } from '../../bridge/avot';
+import { markUpdateApplied, previewUpdate } from '../../suc/spm';
 import { createGoal, listGoals, getGoal, completeGoal, failGoal } from '../goals/planner';
 import { getRecentReflections, runReflectionTick } from '../autonomy/reflection';
+import { getStatusSnapshot, refreshStatus } from '../autonomy/sucController';
 import { createTask, inspectTask, listTasks, cancelTask } from '../tasks/engine';
 import { getShortTermMemory } from '../memory/stm';
 import { getViolations, violationSummary } from '../memory/violations';
@@ -250,6 +252,86 @@ const bridgeStatusCommand: CommandDefinition = {
   handler: () => ({ status: 'ok', message: 'Bridge status', payload: bridgeStatus() }),
 };
 
+const updateStatusCommand: CommandDefinition = {
+  id: 'update.status',
+  description: 'Show Sovereign Update Chain status',
+  handler: async () => {
+    await refreshStatus();
+    const snapshot = getStatusSnapshot();
+    const lastChecked = snapshot.lastUpdateCheckAt
+      ? new Date(snapshot.lastUpdateCheckAt).toLocaleTimeString()
+      : 'never';
+    return {
+      status: 'ok',
+      message: `System ${snapshot.systemVersion}: ${snapshot.appliedCount} applied / ${snapshot.pendingCount} available (last check: ${lastChecked}).`,
+      payload: snapshot,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const updateListCommand: CommandDefinition = {
+  id: 'update.list',
+  description: 'List available SUC updates',
+  handler: async () => {
+    await refreshStatus();
+    const snapshot = getStatusSnapshot();
+    const summary = snapshot.available.map((item) => ({
+      id: item.id,
+      version: item.version,
+      title: item.title,
+      safetyLevel: item.safetyLevel,
+    }));
+    return {
+      status: 'ok',
+      message: `${summary.length} available update(s)`,
+      payload: summary,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const updatePreviewCommand: CommandDefinition = {
+  id: 'update.preview',
+  description: 'Preview a Sovereign Update manifest',
+  handler: async (args) => {
+    const id = args.args[0];
+    if (!id) return { status: 'error', message: 'Update id required' } satisfies CommandHandlerResult;
+    const manifest = await previewUpdate(id);
+    if (!manifest) return { status: 'error', message: `Update not found: ${id}` } satisfies CommandHandlerResult;
+    return {
+      status: 'ok',
+      message: `Previewing update ${id}`,
+      payload: {
+        id: manifest.id,
+        version: manifest.version,
+        scope: manifest.scope,
+        affects: manifest.affects ?? [],
+        migrationNotes: manifest.migrationNotes ?? [],
+        safetyLevel: manifest.safetyLevel,
+        manifest,
+      },
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const updateMarkAppliedCommand: CommandDefinition = {
+  id: 'update.mark-applied',
+  description: 'Mark an update as applied with optional notes',
+  handler: async (args) => {
+    const id = args.args[0];
+    const notes = args.args.slice(1).join(' ') || undefined;
+    if (!id) return { status: 'error', message: 'Update id required' } satisfies CommandHandlerResult;
+    const record = await markUpdateApplied(id, notes);
+    if (!record) return { status: 'error', message: `Unable to mark update ${id} as applied` } satisfies CommandHandlerResult;
+    await refreshStatus();
+    const snapshot = getStatusSnapshot();
+    return {
+      status: 'ok',
+      message: `Update ${id} marked as applied.`,
+      payload: { record, status: snapshot },
+    } satisfies CommandHandlerResult;
+  },
+};
+
 [
   helpCommand,
   pingCommand,
@@ -273,4 +355,8 @@ const bridgeStatusCommand: CommandDefinition = {
   guardrailStatusCommand,
   guardrailViolationsCommand,
   bridgeStatusCommand,
+  updateStatusCommand,
+  updateListCommand,
+  updatePreviewCommand,
+  updateMarkAppliedCommand,
 ].forEach(registerCommand);
