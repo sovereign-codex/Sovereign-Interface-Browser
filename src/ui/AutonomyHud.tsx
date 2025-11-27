@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { bridgeStatus } from '../bridge/avot';
 import { getKernelState, LogEntry } from '../core/autonomy/kernel';
+import { getRecentReflections, Reflection } from '../core/autonomy/reflection';
+import { listGoals } from '../core/goals/planner';
+import { Goal } from '../core/goals/types';
+import { getRecentIntents } from '../core/intent/engine';
+import { IntentSignal } from '../core/intent/types';
 import { getShortTermMemory, ShortTermMemorySnapshot } from '../core/memory/stm';
+import { getViolations, violationSummary } from '../core/memory/violations';
 import { taskMetrics } from '../core/tasks/engine';
 import { useSovereignTheme } from '../sib/ui/SovereignTheme';
 
@@ -31,6 +37,13 @@ export const AutonomyHud: React.FC = () => {
   const [stm, setStm] = useState<ShortTermMemorySnapshot>(() => getShortTermMemory());
   const [taskState, setTaskState] = useState(() => taskMetrics());
   const [bridgeState, setBridgeState] = useState(() => bridgeStatus());
+  const [intents, setIntents] = useState<IntentSignal[]>(() => getRecentIntents(5));
+  const [goals, setGoals] = useState<Goal[]>(() => listGoals().slice(0, 5));
+  const [reflections, setReflections] = useState<Reflection[]>(() => getRecentReflections(1));
+  const [violationCounts, setViolationCounts] = useState(() => violationSummary());
+  const [violations, setViolations] = useState(() => getViolations());
+  const [intentsOpen, setIntentsOpen] = useState(true);
+  const [goalsOpen, setGoalsOpen] = useState(true);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -39,6 +52,11 @@ export const AutonomyHud: React.FC = () => {
       setStm(getShortTermMemory());
       setTaskState(taskMetrics());
       setBridgeState(bridgeStatus());
+      setIntents(getRecentIntents(5));
+      setGoals(listGoals().slice(0, 5));
+      setReflections(getRecentReflections(1));
+      setViolationCounts(violationSummary());
+      setViolations(getViolations());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -64,6 +82,12 @@ export const AutonomyHud: React.FC = () => {
 
   const logEntries = useMemo<LogEntry[]>(() => state.log.slice(-50), [state.log]);
   const uptime = useMemo(() => formatDuration(Date.now() - state.startedAt.getTime()), [state.startedAt, state.commandCount]);
+  const latestReflection = reflections[0];
+  const guardrailColor = useMemo(() => {
+    if (violationCounts.high > 0) return '#ff6b6b';
+    if (violationCounts.medium > 0) return '#f8c471';
+    return '#7cf29c';
+  }, [violationCounts.high, violationCounts.medium]);
 
   return (
     <div
@@ -107,24 +131,39 @@ export const AutonomyHud: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${theme.accentSoft}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 12, color: theme.textSoft }}>Session</div>
-                <div style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{state.sessionId}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: theme.textSoft }}>Bridge</span>
-                <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 999,
-                    background: bridgeState.status === 'connected' ? '#7cf29c' : '#666',
-                    boxShadow: '0 0 10px rgba(0,0,0,0.3)',
-                  }}
-                  title={bridgeState.status}
-                />
+            <div style={{ padding: '12px 14px', borderBottom: `1px solid ${theme.accentSoft}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: theme.textSoft }}>Session</div>
+                  <div style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{state.sessionId}</div>
+                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: theme.textSoft }}>Bridge</span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 999,
+                      background: bridgeState.status === 'connected' ? '#7cf29c' : '#666',
+                      boxShadow: '0 0 10px rgba(0,0,0,0.3)',
+                    }}
+                    title={bridgeState.status}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: theme.textSoft }}>Guardrails</span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 999,
+                      background: guardrailColor,
+                      boxShadow: '0 0 10px rgba(0,0,0,0.25)',
+                    }}
+                    title={`Low: ${violationCounts.low}, Medium: ${violationCounts.medium}, High: ${violationCounts.high}`}
+                  />
+                </div>
               </div>
             </div>
             <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -143,6 +182,39 @@ export const AutonomyHud: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {latestReflection && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderBottom: `1px solid ${theme.accentSoft}`,
+                background: 'rgba(255,255,255,0.02)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background:
+                    latestReflection.health === 'error'
+                      ? '#ff6b6b'
+                      : latestReflection.health === 'warning'
+                      ? '#f8c471'
+                      : '#7cf29c',
+                }}
+              />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Reflection: {latestReflection.health}</div>
+                <div style={{ fontSize: 12, color: theme.textSoft }}>
+                  {latestReflection.notes[0] ?? 'No notes yet.'}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div
             style={{
@@ -182,6 +254,83 @@ export const AutonomyHud: React.FC = () => {
               gap: 8,
             }}
           >
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              onClick={() => setIntentsOpen((prev) => !prev)}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Intents</div>
+              <span style={{ fontSize: 12, color: theme.textSoft }}>{intentsOpen ? 'Hide' : 'Show'}</span>
+            </div>
+            {intentsOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {intents.slice(0, 5).map((intent) => (
+                  <div
+                    key={intent.id}
+                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}
+                  >
+                    <div style={{ maxWidth: '65%' }}>
+                      <div style={{ fontWeight: 600 }}>{intent.kind}</div>
+                      <div style={{ color: theme.textSoft }}>{intent.text}</div>
+                    </div>
+                    <span style={{ color: theme.accent }}>{(intent.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                ))}
+                {intents.length === 0 && <div style={{ fontSize: 12, color: theme.textSoft }}>No intents yet.</div>}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              padding: '12px 14px',
+              borderBottom: `1px solid ${theme.accentSoft}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              onClick={() => setGoalsOpen((prev) => !prev)}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Goals</div>
+              <span style={{ fontSize: 12, color: theme.textSoft }}>{goalsOpen ? 'Hide' : 'Show'}</span>
+            </div>
+            {goalsOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {goals.slice(0, 5).map((goal) => (
+                  <div key={goal.id} style={{ fontSize: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 600, marginRight: 8 }}>{goal.title}</div>
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          fontSize: 11,
+                          background: theme.accentSoft,
+                          color: theme.accent,
+                        }}
+                      >
+                        {goal.status}
+                      </span>
+                    </div>
+                    {goal.description && <div style={{ color: theme.textSoft }}>{goal.description}</div>}
+                  </div>
+                ))}
+                {goals.length === 0 && <div style={{ fontSize: 12, color: theme.textSoft }}>No goals yet.</div>}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              padding: '12px 14px',
+              borderBottom: `1px solid ${theme.accentSoft}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
             <div style={{ fontWeight: 600, fontSize: 13 }}>Short-term memory</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -208,6 +357,11 @@ export const AutonomyHud: React.FC = () => {
             {stm.lastKernelError && (
               <div style={{ fontSize: 12, color: '#ff7b7b' }}>
                 Last error: {stm.lastKernelError.message} ({relativeTime(stm.lastKernelError.at)})
+              </div>
+            )}
+            {violations.length > 0 && (
+              <div style={{ fontSize: 12, color: theme.textSoft }}>
+                Guardrail: {violations[0].rule} ({violations[0].severity}) at {relativeTime(violations[0].createdAt)}
               </div>
             )}
           </div>

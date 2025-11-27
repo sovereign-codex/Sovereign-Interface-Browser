@@ -1,6 +1,9 @@
-import { bridgeStatus } from '../../bridge/avot';
+import { bridgeStatus, getClusterTopology, pingNode } from '../../bridge/avot';
+import { createGoal, listGoals, getGoal, completeGoal, failGoal } from '../goals/planner';
+import { getRecentReflections, runReflectionTick } from '../autonomy/reflection';
 import { createTask, inspectTask, listTasks, cancelTask } from '../tasks/engine';
 import { getShortTermMemory } from '../memory/stm';
+import { getViolations, violationSummary } from '../memory/violations';
 import { getKernelState, logInfo } from '../autonomy/kernel';
 import { CommandDefinition, CommandHandlerResult } from './types';
 
@@ -138,6 +141,109 @@ const memoryStmCommand: CommandDefinition = {
   handler: () => ({ status: 'ok', message: 'STM snapshot', payload: getShortTermMemory() }),
 };
 
+const goalNewCommand: CommandDefinition = {
+  id: 'goal.new',
+  description: 'Create a new goal with optional description',
+  handler: (args) => {
+    const quoteMatch = args.rawArgs.match(/\"([^\"]+)\"/);
+    const title = quoteMatch?.[1] ?? args.args[0];
+    if (!title) return { status: 'error', message: 'Goal title is required' };
+    const description = quoteMatch ? args.rawArgs.replace(quoteMatch[0], '').trim() : args.args.slice(1).join(' ');
+    const goal = createGoal(title, description || undefined);
+    return { status: 'ok', message: `Goal created (${goal.id})`, payload: goal };
+  },
+};
+
+const goalListCommand: CommandDefinition = {
+  id: 'goal.list',
+  description: 'List current goals',
+  handler: () => ({ status: 'ok', message: 'Goals', payload: listGoals() }),
+};
+
+const goalInspectCommand: CommandDefinition = {
+  id: 'goal.inspect',
+  description: 'Inspect a goal by id',
+  handler: (args) => {
+    const goalId = args.args[0];
+    if (!goalId) return { status: 'error', message: 'Goal id required' };
+    const goal = getGoal(goalId);
+    if (!goal) return { status: 'error', message: `Goal not found: ${goalId}` };
+    return { status: 'ok', message: `Goal ${goalId}`, payload: goal };
+  },
+};
+
+const goalCompleteCommand: CommandDefinition = {
+  id: 'goal.complete',
+  description: 'Complete a goal with a summary',
+  handler: (args) => {
+    const goalId = args.args[0];
+    const summaryMatch = args.rawArgs.match(/\"([^\"]+)\"/);
+    const summary = summaryMatch?.[1];
+    if (!goalId) return { status: 'error', message: 'Goal id required' };
+    const updated = completeGoal(goalId, summary ?? undefined);
+    if (!updated) return { status: 'error', message: `Goal not found: ${goalId}` };
+    return { status: 'ok', message: `Goal ${goalId} completed`, payload: updated };
+  },
+};
+
+const goalFailCommand: CommandDefinition = {
+  id: 'goal.fail',
+  description: 'Mark a goal as failed with a reason',
+  handler: (args) => {
+    const goalId = args.args[0];
+    const reasonMatch = args.rawArgs.match(/\"([^\"]+)\"/);
+    const reason = reasonMatch?.[1];
+    if (!goalId) return { status: 'error', message: 'Goal id required' };
+    const updated = failGoal(goalId, reason ?? 'No reason provided');
+    if (!updated) return { status: 'error', message: `Goal not found: ${goalId}` };
+    return { status: 'ok', message: `Goal ${goalId} failed`, payload: updated };
+  },
+};
+
+const reflectNowCommand: CommandDefinition = {
+  id: 'reflect.now',
+  description: 'Run a reflection tick immediately',
+  handler: () => {
+    const reflection = runReflectionTick();
+    return { status: 'ok', message: 'Reflection captured', payload: reflection };
+  },
+};
+
+const reflectListCommand: CommandDefinition = {
+  id: 'reflect.list',
+  description: 'List recent reflections',
+  handler: () => ({ status: 'ok', message: 'Recent reflections', payload: getRecentReflections() }),
+};
+
+const bridgeClusterCommand: CommandDefinition = {
+  id: 'bridge.cluster',
+  description: 'Show AVOT cluster topology',
+  handler: () => ({ status: 'ok', message: 'AVOT cluster topology', payload: getClusterTopology() }),
+};
+
+const bridgePingCommand: CommandDefinition = {
+  id: 'bridge.ping',
+  description: 'Ping a specific AVOT node',
+  handler: async (args) => {
+    const nodeId = args.args[0];
+    if (!nodeId) return { status: 'error', message: 'Node id required' };
+    const result = await pingNode(nodeId);
+    return { status: 'ok', message: `Ping ${nodeId}: ${result}`, payload: { nodeId, result } };
+  },
+};
+
+const guardrailStatusCommand: CommandDefinition = {
+  id: 'guardrails.status',
+  description: 'Show guardrail violation counts',
+  handler: () => ({ status: 'ok', message: 'Guardrail status', payload: violationSummary() }),
+};
+
+const guardrailViolationsCommand: CommandDefinition = {
+  id: 'guardrails.violations',
+  description: 'List recent guardrail violations',
+  handler: () => ({ status: 'ok', message: 'Recent guardrail violations', payload: getViolations() }),
+};
+
 const bridgeStatusCommand: CommandDefinition = {
   id: 'bridge.status',
   description: 'Show AVOT bridge status',
@@ -155,5 +261,16 @@ const bridgeStatusCommand: CommandDefinition = {
   taskInspectCommand,
   taskCancelCommand,
   memoryStmCommand,
+  goalNewCommand,
+  goalListCommand,
+  goalInspectCommand,
+  goalCompleteCommand,
+  goalFailCommand,
+  reflectNowCommand,
+  reflectListCommand,
+  bridgeClusterCommand,
+  bridgePingCommand,
+  guardrailStatusCommand,
+  guardrailViolationsCommand,
   bridgeStatusCommand,
 ].forEach(registerCommand);

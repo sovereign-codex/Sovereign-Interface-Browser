@@ -1,4 +1,5 @@
 import { logError, logInfo, recordCommandExecution } from '../autonomy/kernel';
+import { analyzeCommand } from '../intent/engine';
 import { recordCommandMemory } from '../memory/stm';
 import { getCommand } from './registry';
 import { CommandArgs, CommandContext, CommandHandlerResult } from './types';
@@ -19,6 +20,8 @@ export const executeCommand = async (
   if (!commandId) {
     return { status: 'error', message: 'No command provided' };
   }
+
+  analyzeCommand({ id: commandId, text: input });
 
   const def = getCommand(commandId);
   let result: CommandHandlerResult;
