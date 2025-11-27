@@ -1,2 +1,12 @@
 run = "npm run start"
 language = "nodejs"
+
+[env]
+NODE_ENV = "production"
+
+[interpreter]
+command = ["node"]
+
+[unitTest]
+language = "nodejs"
+run = "npm test"
