@@ -4,6 +4,8 @@ import { TownHallBar } from './components/TownHallBar';
 import { FortressGrid } from './components/FortressGrid';
 import { BuildingPanel } from './components/BuildingPanel';
 import { loadIAmProfile, IAmProfile } from './core/IAmNode';
+import { recalculateTraitsFromXp, TraitSnapshot } from './core/Traits';
+import { getXpSnapshot, XpDomain, type XpSnapshot } from './core/XpSystem';
 import { getWorldState, loadWorldState, WorldState } from './world/WorldState';
 import { getGrid } from './world/WorldGrid';
 import { BuildingState } from './core/types';
@@ -26,6 +28,15 @@ const buildingActions = [
   { id: 'PortalGate', actions: [{ id: 'simulate-open-portal', label: 'Open Portal' }] },
 ];
 
+const buildingXpDomains: Partial<Record<string, XpDomain>> = {
+  Workshop: XpDomain.Craft,
+  Library: XpDomain.Knowledge,
+  Observatory: XpDomain.Insight,
+  Gardens: XpDomain.Coherence,
+  GuardTower: XpDomain.Integrity,
+  PortalGate: XpDomain.Quest,
+};
+
 export const FortressView: React.FC<FortressViewProps> = ({
   mode = 'full',
   initialSelectedBuildingId = 'TownHall',
@@ -38,6 +49,8 @@ export const FortressView: React.FC<FortressViewProps> = ({
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(initialSelectedBuildingId);
   const [buildingState, setBuildingState] = useState<BuildingState | null>(null);
   const [iAmProfile, setIAmProfile] = useState<IAmProfile>(() => loadIAmProfile());
+  const [xpSnapshot, setXpSnapshot] = useState<XpSnapshot>(() => getXpSnapshot());
+  const [traitSnapshot, setTraitSnapshot] = useState<TraitSnapshot | null>(null);
 
   const isStacked = orientation === 'portrait' || breakpoint === 'xs' || breakpoint === 'sm';
 
@@ -55,7 +68,11 @@ export const FortressView: React.FC<FortressViewProps> = ({
     loadWorldState();
     setWorldState(getWorldState());
     setGrid(getGrid().map((row) => row.map((cell) => cell?.building ?? null)));
-    setIAmProfile(loadIAmProfile());
+    const profile = loadIAmProfile();
+    setIAmProfile(profile);
+    const initialXp = getXpSnapshot();
+    setXpSnapshot(initialXp);
+    setTraitSnapshot(recalculateTraitsFromXp(initialXp));
     onInitialized?.();
   }, [onInitialized]);
 
@@ -83,6 +100,10 @@ export const FortressView: React.FC<FortressViewProps> = ({
     module.runBuildingAction(actionId);
     setBuildingState(module.getState());
     setWorldState(getWorldState());
+    const snapshot = getXpSnapshot();
+    setXpSnapshot(snapshot);
+    setTraitSnapshot(recalculateTraitsFromXp(snapshot));
+    setIAmProfile(loadIAmProfile());
   };
 
   const containerStyle: React.CSSProperties = {
@@ -111,7 +132,7 @@ export const FortressView: React.FC<FortressViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <TownHallBar iAmProfile={iAmProfile} onOpenProfile={() => undefined} />
+      <TownHallBar iAmProfile={iAmProfile} traitSnapshot={traitSnapshot} onOpenProfile={() => undefined} />
       <div style={containerStyle}>
         <div style={gridWrapperStyle}>
           <div style={{ marginBottom: 8, fontWeight: 700 }}>Fortress Grid</div>
@@ -130,6 +151,9 @@ export const FortressView: React.FC<FortressViewProps> = ({
             description={selectedBuildingMeta?.description ?? worldSeed.archetypes[selectedBuildingId ?? '']}
             onAction={handleAction}
             actions={selectedActions}
+            xpDomain={selectedBuildingId ? buildingXpDomains[selectedBuildingId] ?? null : null}
+            xpSnapshot={xpSnapshot}
+            traitSnapshot={traitSnapshot}
           />
         </div>
       </div>

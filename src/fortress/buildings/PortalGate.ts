@@ -1,5 +1,7 @@
 import { logInfo } from '../../core/autonomy/kernel';
 import { BuildingActionResult, BuildingState } from '../core/types';
+import { recalculateTraitsFromXp } from '../core/Traits';
+import { grantXp, getXpSnapshot, XpDomain } from '../core/XpSystem';
 import { loadWorldState, updateWorldState } from '../world/WorldState';
 
 const state: BuildingState = {
@@ -45,6 +47,9 @@ export const runBuildingAction = (action: string, payload?: unknown): BuildingAc
     const portalVisits = Number(state.metadata?.portalVisits ?? 0) + 1;
     state.metadata = { ...state.metadata, portalVisits, lastPortal: new Date().toISOString() };
     updateWorldState({ lastPortalVisited: `Portal-${portalVisits}` });
+    grantXp(XpDomain.Quest, 5, 'PortalGate:simulate-open-portal', 'PortalGate');
+    const snapshot = getXpSnapshot();
+    recalculateTraitsFromXp(snapshot);
   }
   logAction(action, payload);
   state.lastAction = action;

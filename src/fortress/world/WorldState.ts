@@ -1,5 +1,6 @@
 import { logInfo } from '../../core/autonomy/kernel';
 import { SIBStorage } from '../../storage/SIBStorage';
+import type { XpDomain, XpLedgerEntry } from '../core/XpSystem';
 
 export const FORTRESS_WORLD_VERSION = '0.1.0';
 export const FORTRESS_WORLD_PHASE = 'Phase 1';
@@ -13,11 +14,17 @@ export interface WorldState {
   lastPortalVisited: string | null;
   worldVersion: string;
   bindToIAmNode: boolean;
+  xpByDomain: Record<XpDomain, number>;
+  xpHistory: XpLedgerEntry[];
+  traits: Record<string, number>;
 }
 
-export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worldFlags'>> & {
+export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worldFlags' | 'xpByDomain' | 'xpHistory'>> & {
   buildingLevels?: Partial<Record<string, number>>;
   worldFlags?: Partial<Record<string, boolean>>;
+  xpByDomain?: Partial<Record<XpDomain, number>>;
+  xpHistory?: XpLedgerEntry[];
+  traits?: Record<string, number>;
 };
 
 const storage = new SIBStorage('fortress_v1');
@@ -42,6 +49,16 @@ const defaultWorldState: WorldState = {
   lastPortalVisited: null,
   worldVersion: FORTRESS_WORLD_VERSION,
   bindToIAmNode: true,
+  xpByDomain: {
+    craft: 0,
+    knowledge: 0,
+    insight: 0,
+    coherence: 0,
+    integrity: 0,
+    quest: 0,
+  },
+  xpHistory: [],
+  traits: {},
 };
 
 let worldState: WorldState = { ...defaultWorldState };
@@ -53,6 +70,9 @@ const cloneState = (state: WorldState): WorldState => ({
   unlockedBuildings: [...state.unlockedBuildings],
   buildingLevels: { ...state.buildingLevels },
   worldFlags: { ...state.worldFlags },
+  xpByDomain: { ...state.xpByDomain },
+  xpHistory: [...state.xpHistory],
+  traits: { ...state.traits },
 });
 
 const persist = (): void => {
@@ -67,6 +87,9 @@ export const loadWorldState = (): WorldState => {
       ...stored,
       buildingLevels: { ...defaultWorldState.buildingLevels, ...stored.buildingLevels },
       worldFlags: { ...defaultWorldState.worldFlags, ...stored.worldFlags },
+      xpByDomain: { ...defaultWorldState.xpByDomain, ...stored.xpByDomain },
+      xpHistory: stored.xpHistory ?? defaultWorldState.xpHistory,
+      traits: stored.traits ?? defaultWorldState.traits,
     };
   } else {
     worldState = { ...defaultWorldState };
@@ -108,6 +131,9 @@ export const updateWorldState = (updates: WorldStateUpdate): WorldState => {
     ...updates,
     buildingLevels: { ...worldState.buildingLevels, ...(updates.buildingLevels ?? {}) },
     worldFlags: { ...worldState.worldFlags, ...(updates.worldFlags ?? {}) },
+    xpByDomain: { ...worldState.xpByDomain, ...(updates.xpByDomain ?? {}) },
+    xpHistory: updates.xpHistory ?? worldState.xpHistory,
+    traits: updates.traits ?? worldState.traits,
     worldVersion: updates.worldVersion ?? worldState.worldVersion ?? FORTRESS_WORLD_VERSION,
   };
   persist();

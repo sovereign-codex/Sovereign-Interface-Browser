@@ -1,8 +1,10 @@
 import React from 'react';
 import { IAmProfile } from '../core/IAmNode';
+import { TraitSnapshot } from '../core/Traits';
 
 interface TownHallBarProps {
   iAmProfile: IAmProfile;
+  traitSnapshot?: TraitSnapshot | null;
   onOpenProfile: () => void;
 }
 
@@ -11,7 +13,17 @@ const shorten = (value: string, length = 12): string => {
   return `${value.slice(0, length)}…`;
 };
 
-export const TownHallBar: React.FC<TownHallBarProps> = ({ iAmProfile, onOpenProfile }) => {
+const renderTraitSummary = (snapshot?: TraitSnapshot | null): string => {
+  const traits = snapshot?.traits ?? [];
+  if (!traits.length) return 'Traits initializing...';
+  const sorted = [...traits].sort((a, b) => b.level - a.level || a.label.localeCompare(b.label));
+  const visible = sorted.filter((trait) => trait.level > 0).slice(0, 3);
+  const fallback = sorted.slice(0, 2);
+  const selected = visible.length > 0 ? visible : fallback;
+  return selected.map((trait) => `${trait.label} ${trait.level}`).join(' • ');
+};
+
+export const TownHallBar: React.FC<TownHallBarProps> = ({ iAmProfile, traitSnapshot, onOpenProfile }) => {
   return (
     <div
       style={{
@@ -33,6 +45,7 @@ export const TownHallBar: React.FC<TownHallBarProps> = ({ iAmProfile, onOpenProf
           <span>
             Coherence: <strong>{iAmProfile.coherenceIndex}</strong>
           </span>
+          <span>Traits: {renderTraitSummary(traitSnapshot)}</span>
         </div>
       </div>
       <button
