@@ -11,6 +11,9 @@ import { getWorldState, loadWorldState } from '../../fortress/world/WorldState';
 import { getGrid } from '../../fortress/world/WorldGrid';
 import { buildingMetadata, getBuildingModule, listBuildings as listFortressBuildings } from '../../fortress/core/Registry';
 import { getIAmProfile } from '../../fortress/core/IAmNode';
+import { getAvot, listAvots, setAvotLocation, setAvotMood } from '../../fortress/avots/AvotRegistry';
+import { getDialogue } from '../../fortress/avots/DialogueEngine';
+import { getTraits } from '../../fortress/core/Traits';
 import { CommandDefinition, CommandHandlerResult } from './types';
 
 const registry = new Map<string, CommandDefinition>();
@@ -430,6 +433,73 @@ const fortressGridCommand: CommandDefinition = {
   },
 };
 
+const avotWhereCommand: CommandDefinition = {
+  id: 'avot.where',
+  description: 'Show where each AVOT NPC is stationed',
+  handler: () => {
+    loadWorldState();
+    const avots = listAvots();
+    return {
+      status: 'ok',
+      message: `${avots.length} AVOT(s) present across the Fortress`,
+      payload: avots.map((avot) => ({
+        id: avot.id,
+        role: avot.role,
+        currentBuilding: avot.currentBuilding,
+        mood: avot.mood,
+      })),
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const avotSummonCommand: CommandDefinition = {
+  id: 'avot.summon',
+  description: 'Manually relocate an AVOT to a building',
+  handler: (args) => {
+    const [avotId, buildingId] = args.args;
+    if (!avotId || !buildingId) return { status: 'error', message: 'Usage: avot.summon <id> <building>' } satisfies CommandHandlerResult;
+    try {
+      getAvot(avotId);
+    } catch (err) {
+      return { status: 'error', message: (err as Error).message } satisfies CommandHandlerResult;
+    }
+    setAvotLocation(avotId, buildingId);
+    return { status: 'ok', message: `${avotId} summoned to ${buildingId}` } satisfies CommandHandlerResult;
+  },
+};
+
+const avotMoodCommand: CommandDefinition = {
+  id: 'avot.mood',
+  description: 'Update an AVOT mood marker',
+  handler: (args) => {
+    const [avotId, mood] = args.args;
+    if (!avotId || !mood) return { status: 'error', message: 'Usage: avot.mood <id> <mood>' } satisfies CommandHandlerResult;
+    try {
+      getAvot(avotId);
+    } catch (err) {
+      return { status: 'error', message: (err as Error).message } satisfies CommandHandlerResult;
+    }
+    setAvotMood(avotId, mood);
+    return { status: 'ok', message: `${avotId} mood set to ${mood}` } satisfies CommandHandlerResult;
+  },
+};
+
+const avotTalkCommand: CommandDefinition = {
+  id: 'avot.talk',
+  description: 'Hear dialogue from an AVOT at their current post',
+  handler: (args) => {
+    const avotId = args.args[0];
+    if (!avotId) return { status: 'error', message: 'Usage: avot.talk <id>' } satisfies CommandHandlerResult;
+    try {
+      const world = getWorldState();
+      const dialogue = getDialogue(avotId, world, getTraits());
+      return { status: 'ok', message: dialogue, payload: { avotId, building: getAvot(avotId).currentBuilding } } satisfies CommandHandlerResult;
+    } catch (err) {
+      return { status: 'error', message: (err as Error).message } satisfies CommandHandlerResult;
+    }
+  },
+};
+
 [
   helpCommand,
   pingCommand,
@@ -462,4 +532,8 @@ const fortressGridCommand: CommandDefinition = {
   fortressBuildingsCommand,
   fortressInspectCommand,
   fortressGridCommand,
+  avotWhereCommand,
+  avotSummonCommand,
+  avotMoodCommand,
+  avotTalkCommand,
 ].forEach(registerCommand);

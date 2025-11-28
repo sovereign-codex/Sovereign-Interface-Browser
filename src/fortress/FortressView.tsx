@@ -11,6 +11,8 @@ import { getGrid } from './world/WorldGrid';
 import { BuildingState } from './core/types';
 import { buildingMetadata, getBuildingModule } from './core/Registry';
 import { useViewport } from './core/useViewport';
+import { AvotNpc, listAvots } from './avots/AvotRegistry';
+import { getAvotsByBuilding, getPresenceSummary, tickPresenceEngine } from './avots/PresenceEngine';
 
 interface FortressViewProps {
   mode?: 'embedded' | 'full';
@@ -51,6 +53,8 @@ export const FortressView: React.FC<FortressViewProps> = ({
   const [iAmProfile, setIAmProfile] = useState<IAmProfile>(() => loadIAmProfile());
   const [xpSnapshot, setXpSnapshot] = useState<XpSnapshot>(() => getXpSnapshot());
   const [traitSnapshot, setTraitSnapshot] = useState<TraitSnapshot | null>(null);
+  const [avots, setAvots] = useState<AvotNpc[]>(() => listAvots());
+  const [presenceByBuilding, setPresenceByBuilding] = useState<Record<string, AvotNpc[]>>({});
 
   const isStacked = orientation === 'portrait' || breakpoint === 'xs' || breakpoint === 'sm';
 
@@ -64,15 +68,25 @@ export const FortressView: React.FC<FortressViewProps> = ({
     [selectedBuildingId],
   );
 
+  const refreshPresence = (stateOverride?: WorldState, trigger: 'tick' | 'idle' | 'portal' | 'manual' | 'xp' = 'tick'): void => {
+    const state = stateOverride ?? getWorldState();
+    tickPresenceEngine(state, trigger);
+    setAvots(listAvots());
+    setPresenceByBuilding(getPresenceSummary());
+    setWorldState(state);
+  };
+
   useEffect(() => {
     loadWorldState();
-    setWorldState(getWorldState());
+    const loadedWorld = getWorldState();
+    setWorldState(loadedWorld);
     setGrid(getGrid().map((row) => row.map((cell) => cell?.building ?? null)));
     const profile = loadIAmProfile();
     setIAmProfile(profile);
     const initialXp = getXpSnapshot();
     setXpSnapshot(initialXp);
     setTraitSnapshot(recalculateTraitsFromXp(initialXp));
+    refreshPresence(loadedWorld);
     onInitialized?.();
   }, [onInitialized]);
 
@@ -89,6 +103,23 @@ export const FortressView: React.FC<FortressViewProps> = ({
     onSelectChange?.(selectedBuildingId);
   }, [selectedBuildingId, onSelectChange]);
 
+  useEffect(() => {
+    let timer: number | undefined;
+    const schedule = (): void => {
+      const delay = 30000 + Math.random() * 15000;
+      timer = window.setTimeout(() => {
+        refreshPresence(getWorldState(), 'idle');
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, []);
+
   const handleSelect = (buildingId: string): void => {
     setSelectedBuildingId(buildingId);
   };
@@ -99,11 +130,13 @@ export const FortressView: React.FC<FortressViewProps> = ({
     if (!module) return;
     module.runBuildingAction(actionId);
     setBuildingState(module.getState());
-    setWorldState(getWorldState());
     const snapshot = getXpSnapshot();
     setXpSnapshot(snapshot);
-    setTraitSnapshot(recalculateTraitsFromXp(snapshot));
+    const traits = recalculateTraitsFromXp(snapshot);
+    setTraitSnapshot(traits);
     setIAmProfile(loadIAmProfile());
+    const updatedWorld = getWorldState();
+    refreshPresence(updatedWorld, 'xp');
   };
 
   const containerStyle: React.CSSProperties = {
@@ -130,6 +163,9 @@ export const FortressView: React.FC<FortressViewProps> = ({
     background: 'rgba(255,255,255,0.02)',
   };
 
+  const resolvedWorldState = worldState ?? getWorldState();
+  const avotsPresent = selectedBuildingId ? presenceByBuilding[selectedBuildingId] ?? [] : [];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <TownHallBar iAmProfile={iAmProfile} traitSnapshot={traitSnapshot} onOpenProfile={() => undefined} />
@@ -141,6 +177,7 @@ export const FortressView: React.FC<FortressViewProps> = ({
             unlockedBuildings={worldState?.unlockedBuildings ?? []}
             selectedBuildingId={selectedBuildingId}
             onSelect={handleSelect}
+            avotsByBuilding={presenceByBuilding}
           />
         </div>
         <div style={panelWrapperStyle}>
@@ -154,6 +191,8 @@ export const FortressView: React.FC<FortressViewProps> = ({
             xpDomain={selectedBuildingId ? buildingXpDomains[selectedBuildingId] ?? null : null}
             xpSnapshot={xpSnapshot}
             traitSnapshot={traitSnapshot}
+            avots={avotsPresent}
+            worldState={resolvedWorldState}
           />
         </div>
       </div>
