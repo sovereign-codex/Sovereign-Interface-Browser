@@ -3,6 +3,7 @@ import { TraitSnapshot } from '../core/Traits';
 import { XpDomain } from '../core/XpSystem';
 import { WorldState } from '../world/WorldState';
 import { getAvot } from './AvotRegistry';
+import { getAvotQuestHint } from '../quests/QuestEngine';
 
 const xpLabels: Record<XpDomain, string> = {
   [XpDomain.Craft]: 'craft',
@@ -74,9 +75,11 @@ export const getDialogue = (
     ?.filter((trait) => trait.level > 0)
     .map((trait) => `${trait.label} ${trait.level}`)
     .join(', ');
+  const questHint = getAvotQuestHint(avotId, avot.currentBuilding);
 
   const parts = [
     buildingLine(avotId, avot.currentBuilding),
+    questHint,
     moodLine(avot.mood),
     xpFocus ? `Your ${xpLabels[xpFocus[0] as XpDomain]} hums at ${xpFocus[1]}.` : null,
     traitLine ? `Traits: ${traitLine}.` : null,

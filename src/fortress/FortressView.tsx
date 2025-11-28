@@ -3,6 +3,7 @@ import worldSeed from './world/worldSeed.json';
 import { TownHallBar } from './components/TownHallBar';
 import { FortressGrid } from './components/FortressGrid';
 import { BuildingPanel } from './components/BuildingPanel';
+import { logInfo } from '../core/autonomy/kernel';
 import { loadIAmProfile, IAmProfile } from './core/IAmNode';
 import { recalculateTraitsFromXp, TraitSnapshot } from './core/Traits';
 import { getXpSnapshot, XpDomain, type XpSnapshot } from './core/XpSystem';
@@ -12,7 +13,12 @@ import { BuildingState } from './core/types';
 import { buildingMetadata, getBuildingModule } from './core/Registry';
 import { useViewport } from './core/useViewport';
 import { AvotNpc, listAvots } from './avots/AvotRegistry';
-import { getAvotsByBuilding, getPresenceSummary, tickPresenceEngine } from './avots/PresenceEngine';
+import { getPresenceSummary, tickPresenceEngine } from './avots/PresenceEngine';
+import { Quest } from './quests/QuestTypes';
+import { initQuestEngine, acceptQuestById, completeQuestById, QuestEngineContext } from './quests/QuestEngine';
+import { getQuestById, getQuestLog } from './quests/QuestLog';
+import { applyRewards } from './quests/QuestRewards';
+import { getRecentTalosEvents } from './core/TalosBridge';
 
 interface FortressViewProps {
   mode?: 'embedded' | 'full';
@@ -55,6 +61,7 @@ export const FortressView: React.FC<FortressViewProps> = ({
   const [traitSnapshot, setTraitSnapshot] = useState<TraitSnapshot | null>(null);
   const [avots, setAvots] = useState<AvotNpc[]>(() => listAvots());
   const [presenceByBuilding, setPresenceByBuilding] = useState<Record<string, AvotNpc[]>>({});
+  const [quests, setQuests] = useState<Quest[]>([]);
 
   const isStacked = orientation === 'portrait' || breakpoint === 'xs' || breakpoint === 'sm';
 
@@ -76,6 +83,15 @@ export const FortressView: React.FC<FortressViewProps> = ({
     setWorldState(state);
   };
 
+  const resolvedWorldState = worldState ?? getWorldState();
+
+  const buildQuestContext = (): QuestEngineContext => ({
+    xpSnapshot,
+    traitSnapshot: traitSnapshot ?? recalculateTraitsFromXp(xpSnapshot),
+    worldState: resolvedWorldState,
+    recentTalosEvents: getRecentTalosEvents(),
+  });
+
   useEffect(() => {
     loadWorldState();
     const loadedWorld = getWorldState();
@@ -87,6 +103,8 @@ export const FortressView: React.FC<FortressViewProps> = ({
     setXpSnapshot(initialXp);
     setTraitSnapshot(recalculateTraitsFromXp(initialXp));
     refreshPresence(loadedWorld);
+    initQuestEngine({ xpSnapshot: initialXp, traitSnapshot: recalculateTraitsFromXp(initialXp), worldState: loadedWorld });
+    setQuests(getQuestLog(loadedWorld).quests);
     onInitialized?.();
   }, [onInitialized]);
 
@@ -137,6 +155,37 @@ export const FortressView: React.FC<FortressViewProps> = ({
     setIAmProfile(loadIAmProfile());
     const updatedWorld = getWorldState();
     refreshPresence(updatedWorld, 'xp');
+    setQuests(getQuestLog(updatedWorld).quests);
+  };
+
+  const handleAcceptQuest = (questId: string): void => {
+    const context = buildQuestContext();
+    const result = acceptQuestById(questId, context);
+    if (!result.ok) {
+      logInfo('fortress.quest', `[QUEST] Accept failed: ${result.message}`);
+    }
+    setQuests(getQuestLog().quests);
+  };
+
+  const handleCompleteQuest = (questId: string): void => {
+    const context = buildQuestContext();
+    const result = completeQuestById(questId, context);
+    if (!result.ok) {
+      logInfo('fortress.quest', `[QUEST] Completion failed: ${result.message}`);
+      return;
+    }
+    const quest = getQuestById(questId);
+    if (quest) {
+      applyRewards(quest);
+    }
+    const snapshot = getXpSnapshot();
+    setXpSnapshot(snapshot);
+    const traits = recalculateTraitsFromXp(snapshot);
+    setTraitSnapshot(traits);
+    setIAmProfile(loadIAmProfile());
+    const updatedWorld = getWorldState();
+    refreshPresence(updatedWorld, 'xp');
+    setQuests(getQuestLog(updatedWorld).quests);
   };
 
   const containerStyle: React.CSSProperties = {
@@ -163,7 +212,6 @@ export const FortressView: React.FC<FortressViewProps> = ({
     background: 'rgba(255,255,255,0.02)',
   };
 
-  const resolvedWorldState = worldState ?? getWorldState();
   const avotsPresent = selectedBuildingId ? presenceByBuilding[selectedBuildingId] ?? [] : [];
 
   return (
@@ -193,6 +241,9 @@ export const FortressView: React.FC<FortressViewProps> = ({
             traitSnapshot={traitSnapshot}
             avots={avotsPresent}
             worldState={resolvedWorldState}
+            quests={quests}
+            onAcceptQuest={handleAcceptQuest}
+            onCompleteQuest={handleCompleteQuest}
           />
         </div>
       </div>
