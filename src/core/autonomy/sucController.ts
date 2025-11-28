@@ -2,6 +2,7 @@ import { logError, logInfo } from './kernel';
 import { getUpdateStatus } from '../../suc/spm';
 import { AppliedUpdateRecord, SovereignUpdateManifest } from '../../suc/types';
 import { FORTRESS_VERSION_LABEL, FORTRESS_WORLD_VERSION } from '../../fortress/world/WorldState';
+import { getSpatialState } from '../../spatial/SpatialContext';
 
 export interface SucStatusSnapshot {
   systemVersion: string;
@@ -12,6 +13,7 @@ export interface SucStatusSnapshot {
   available: SovereignUpdateManifest[];
   fortressWorldVersion: string;
   fortressVersionLabel: string;
+  spatialSupport: 'none' | 'simulated' | 'xr-hinted';
 }
 
 const snapshot: SucStatusSnapshot = {
@@ -22,6 +24,7 @@ const snapshot: SucStatusSnapshot = {
   available: [],
   fortressWorldVersion: FORTRESS_WORLD_VERSION,
   fortressVersionLabel: FORTRESS_VERSION_LABEL,
+  spatialSupport: 'none',
 };
 
 export const refreshStatus = async (): Promise<void> => {
@@ -35,7 +38,11 @@ export const refreshStatus = async (): Promise<void> => {
     snapshot.lastUpdateCheckAt = new Date().toISOString();
     snapshot.fortressWorldVersion = FORTRESS_WORLD_VERSION;
     snapshot.fortressVersionLabel = FORTRESS_VERSION_LABEL;
-    logInfo('suc.controller', `[SUC] Status refreshed: ${snapshot.appliedCount} applied, ${snapshot.pendingCount} available.`);
+    snapshot.spatialSupport = getSpatialState().mode;
+    logInfo(
+      'suc.controller',
+      `[SUC] Status refreshed: ${snapshot.appliedCount} applied, ${snapshot.pendingCount} available. Spatial Mode: ${snapshot.spatialSupport}.`,
+    );
   } catch (error) {
     logError('suc.controller', '[SUC] Failed to refresh update status', { error });
   }

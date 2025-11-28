@@ -20,9 +20,12 @@ import { CommandContext } from '../core/commands/types';
 import { getKernelState } from '../core/autonomy/kernel';
 import { refreshStatus as refreshSucStatus } from '../core/autonomy/sucController';
 import { FortressShell } from '../fortress/FortressShell';
+import { useSpatial } from '../spatial/SpatialContext';
+import { FortressSpatialShell } from '../fortress/FortressSpatialShell';
 
 export const ShellApp: React.FC = () => {
   const { theme, toggleTheme } = useSovereignTheme();
+  const spatial = useSpatial();
   const eventBus = useMemo(() => new EventBus<AppEvents>(), []);
   const sessionManager = useMemo(() => new SessionManager(), []);
   const guardian = useMemo(() => new GuardianLayer(), []);
@@ -38,12 +41,19 @@ export const ShellApp: React.FC = () => {
   const [identity, setIdentity] = useState<IdentityProfile>(() => identityVault.getActiveIdentity());
   const [ready, setReady] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>(() => (typeof window !== 'undefined' ? window.location.pathname : '/'));
+
   const commandContext = useMemo<CommandContext>(
     () => ({
       toggleTheme,
       getKernelState,
+      spatial: {
+        enterSpatialMode: spatial.enterSpatialMode,
+        exitSpatialMode: spatial.exitSpatialMode,
+        toggleSpatialMode: spatial.toggleSpatialMode,
+        getSpatialState: () => spatial,
+      },
     }),
-    [toggleTheme],
+    [spatial, toggleTheme],
   );
 
   const router = useMemo(() => new CommandRouter(kodex, avot, guardian, sessionManager, eventBus), [avot, eventBus, guardian, kodex, sessionManager]);
@@ -51,7 +61,7 @@ export const ShellApp: React.FC = () => {
   useEffect(() => {
     const unsubscribers = [
       eventBus.on('result', ({ entry }) => setHistory(sessionManager.getHistory())),
-      eventBus.on('audit', ({ audit }) => setAuditLog(audit))
+      eventBus.on('audit', ({ audit }) => setAuditLog(audit)),
     ];
 
     const init = async (): Promise<void> => {
@@ -98,6 +108,12 @@ export const ShellApp: React.FC = () => {
       window.removeEventListener('sib:navigate', handleNavigate as EventListener);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (currentPath === '/fortress/spatial') {
+      spatial.enterSpatialMode(spatial.supported ? spatial.mode : 'simulated');
+    }
+  }, [currentPath, spatial.enterSpatialMode, spatial.mode, spatial.supported]);
 
   const latestResult: CommandResult | undefined = history[0]?.result;
   const shellStyle: React.CSSProperties = useMemo(
@@ -155,24 +171,53 @@ export const ShellApp: React.FC = () => {
           >
             Enter Fortress
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              spatial.enterSpatialMode(spatial.supported ? 'xr-hinted' : 'simulated');
+              navigate('/fortress/spatial');
+            }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(41, 128, 185, 0.15)',
+              color: '#ecf0f1',
+              cursor: 'pointer',
+            }}
+          >
+            Spatial Mode
+          </button>
           <div style={{ fontSize: 12, color: ready ? '#45a29e' : '#c5c6c7' }}>
             {ready ? 'Ready' : 'Booting manifest...'}
           </div>
         </div>
       </header>
 
-      {currentPath === '/fortress' ? (
+      {currentPath === '/fortress' && (
         <div style={{ padding: 16 }}>
           <FortressShell mode="full" />
         </div>
-      ) : (
+      )}
+
+      {currentPath === '/fortress/spatial' && (
+        <div style={{ padding: 16 }}>
+          <FortressSpatialShell />
+        </div>
+      )}
+
+      {currentPath !== '/fortress' && currentPath !== '/fortress/spatial' && (
         <main style={mainLayout}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Viewport entries={history} latestAudit={auditLog} />
             <Omnibar placeholder={config.omnibar.placeholder} disabled={!ready} context={commandContext} />
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <TymePanel identity={identity} manifest={manifest} onRefreshIdentity={() => setIdentity(identityVault.getActiveIdentity())} />
+            <TymePanel
+              identity={identity}
+              manifest={manifest}
+              onRefreshIdentity={() => setIdentity(identityVault.getActiveIdentity())}
+            />
             <HouseOfTymeRadial sessionId={sessionManager.sessionId} status={latestResult?.status ?? 'idle'} />
           </section>
         </main>
