@@ -1,10 +1,12 @@
 import React from 'react';
+import { AvotNpc } from '../avots/AvotRegistry';
 
 interface FortressGridProps {
   grid: (string | null)[][];
   unlockedBuildings: string[];
   selectedBuildingId?: string | null;
   onSelect: (buildingId: string) => void;
+  avotsByBuilding?: Record<string, AvotNpc[]>;
 }
 
 export const FortressGrid: React.FC<FortressGridProps> = ({
@@ -12,6 +14,7 @@ export const FortressGrid: React.FC<FortressGridProps> = ({
   unlockedBuildings,
   selectedBuildingId,
   onSelect,
+  avotsByBuilding,
 }) => {
   return (
     <div
@@ -29,6 +32,7 @@ export const FortressGrid: React.FC<FortressGridProps> = ({
           const isSelected = buildingId && selectedBuildingId === buildingId;
           const label = buildingId ?? 'Empty';
           const key = `${rowIndex}-${colIndex}`;
+          const avotsHere = buildingId && avotsByBuilding ? avotsByBuilding[buildingId] ?? [] : [];
 
           return (
             <button
@@ -48,6 +52,7 @@ export const FortressGrid: React.FC<FortressGridProps> = ({
                 textAlign: 'center',
                 padding: 8,
                 boxShadow: isSelected ? '0 0 0 3px rgba(29,209,161,0.2)' : 'none',
+                position: 'relative',
               }}
             >
               <div>
@@ -56,6 +61,38 @@ export const FortressGrid: React.FC<FortressGridProps> = ({
                   {buildingId ? (unlocked ? 'Unlocked' : 'Locked') : 'No building'}
                 </div>
               </div>
+              {avotsHere.length > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    display: 'flex',
+                    gap: 4,
+                  }}
+                >
+                  {avotsHere.slice(0, 3).map((avot) => (
+                    <span
+                      key={`${avot.id}-${buildingId}`}
+                      title={`${avot.id} (${avot.mood})`}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        background: 'rgba(29, 209, 161, 0.15)',
+                        border: '1px solid rgba(29,209,161,0.5)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        color: '#1dd1a1',
+                      }}
+                    >
+                      {avot.id.slice(0, 1)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </button>
           );
         }),

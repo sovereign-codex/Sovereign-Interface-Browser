@@ -2,6 +2,7 @@ import { logInfo } from '../../core/autonomy/kernel';
 import { getWorldState, loadWorldState, updateWorldState } from '../world/WorldState';
 import { getIAmProfile, updateIAmProfile } from './IAmNode';
 import { XpDomain, type XpSnapshot } from './XpSystem';
+import { onTraitLevelUp } from '../avots/PresenceEngine';
 
 export interface Trait {
   id: string;
@@ -106,6 +107,7 @@ export const recalculateTraitsFromXp = (xp: XpSnapshot): TraitSnapshot => {
     if (nextLevel > trait.level) {
       changed = true;
       logInfo('fortress.traits', `[TRAIT] ${trait.id} leveled up to ${nextLevel}.`);
+      onTraitLevelUp(trait.id, nextLevel);
       return { ...trait, level: nextLevel };
     }
     return { ...trait };

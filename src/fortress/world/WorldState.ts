@@ -17,6 +17,8 @@ export interface WorldState {
   xpByDomain: Record<XpDomain, number>;
   xpHistory: XpLedgerEntry[];
   traits: Record<string, number>;
+  avotLocations: Record<string, string>;
+  avotMoods: Record<string, string>;
 }
 
 export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worldFlags' | 'xpByDomain' | 'xpHistory'>> & {
@@ -25,6 +27,8 @@ export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worl
   xpByDomain?: Partial<Record<XpDomain, number>>;
   xpHistory?: XpLedgerEntry[];
   traits?: Record<string, number>;
+  avotLocations?: Record<string, string>;
+  avotMoods?: Record<string, string>;
 };
 
 const storage = new SIBStorage('fortress_v1');
@@ -59,6 +63,22 @@ const defaultWorldState: WorldState = {
   },
   xpHistory: [],
   traits: {},
+  avotLocations: {
+    Tyme: 'Observatory',
+    Harmonia: 'Gardens',
+    Guardian: 'GuardTower',
+    Archivist: 'Library',
+    Fabricator: 'Workshop',
+    Initiate: 'PortalGate',
+  },
+  avotMoods: {
+    Tyme: 'focused',
+    Harmonia: 'calm',
+    Guardian: 'alert',
+    Archivist: 'inquiry',
+    Fabricator: 'ready',
+    Initiate: 'curious',
+  },
 };
 
 let worldState: WorldState = { ...defaultWorldState };
@@ -73,6 +93,8 @@ const cloneState = (state: WorldState): WorldState => ({
   xpByDomain: { ...state.xpByDomain },
   xpHistory: [...state.xpHistory],
   traits: { ...state.traits },
+  avotLocations: { ...state.avotLocations },
+  avotMoods: { ...state.avotMoods },
 });
 
 const persist = (): void => {
@@ -90,6 +112,8 @@ export const loadWorldState = (): WorldState => {
       xpByDomain: { ...defaultWorldState.xpByDomain, ...stored.xpByDomain },
       xpHistory: stored.xpHistory ?? defaultWorldState.xpHistory,
       traits: stored.traits ?? defaultWorldState.traits,
+      avotLocations: { ...defaultWorldState.avotLocations, ...(stored.avotLocations ?? {}) },
+      avotMoods: { ...defaultWorldState.avotMoods, ...(stored.avotMoods ?? {}) },
     };
   } else {
     worldState = { ...defaultWorldState };
@@ -134,6 +158,8 @@ export const updateWorldState = (updates: WorldStateUpdate): WorldState => {
     xpByDomain: { ...worldState.xpByDomain, ...(updates.xpByDomain ?? {}) },
     xpHistory: updates.xpHistory ?? worldState.xpHistory,
     traits: updates.traits ?? worldState.traits,
+    avotLocations: { ...worldState.avotLocations, ...(updates.avotLocations ?? {}) },
+    avotMoods: { ...worldState.avotMoods, ...(updates.avotMoods ?? {}) },
     worldVersion: updates.worldVersion ?? worldState.worldVersion ?? FORTRESS_WORLD_VERSION,
   };
   persist();

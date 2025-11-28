@@ -1,7 +1,10 @@
 import React from 'react';
+import { AvotNpc } from '../avots/AvotRegistry';
 import { BuildingState } from '../core/types';
 import { TraitSnapshot } from '../core/Traits';
 import { XpDomain, XpSnapshot } from '../core/XpSystem';
+import { WorldState } from '../world/WorldState';
+import { AvotPanel } from './AvotPanel';
 
 interface BuildingPanelProps {
   buildingId: string | null;
@@ -12,6 +15,8 @@ interface BuildingPanelProps {
   xpDomain?: XpDomain | null;
   xpSnapshot?: XpSnapshot | null;
   traitSnapshot?: TraitSnapshot | null;
+  avots?: AvotNpc[];
+  worldState?: WorldState | null;
 }
 
 export const BuildingPanel: React.FC<BuildingPanelProps> = ({
@@ -23,6 +28,8 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
   xpDomain,
   xpSnapshot,
   traitSnapshot,
+  avots = [],
+  worldState,
 }) => {
   if (!buildingId) {
     return (
@@ -96,6 +103,24 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {avots.length > 0 && worldState && (
+        <div
+          style={{
+            marginTop: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>AVOT Presence</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {avots.map((avot) => (
+              <AvotPanel key={avot.id} avot={avot} worldState={worldState} traitSnapshot={traitSnapshot} />
+            ))}
+          </div>
         </div>
       )}
 
