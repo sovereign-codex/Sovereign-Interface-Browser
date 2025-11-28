@@ -7,6 +7,7 @@ import { acceptQuest, completeQuest, failQuest, getQuestById, getQuestLog, listQ
 import { canAcceptQuest, canCompleteQuest, QuestEvaluationContext } from './QuestEvaluator';
 import { ensureSeedQuestsInitialized } from './QuestSeeder';
 import { Quest } from './QuestTypes';
+import { requestSpireScan } from '../crown/CrownController';
 
 export interface QuestEngineContext {
   xpSnapshot?: XpSnapshot;
@@ -79,6 +80,7 @@ export const completeQuestById = (
 
   completeQuest(id);
   logInfo('fortress.quest', `[QUEST] ${id} completed; rewards pending application.`);
+  requestSpireScan().catch(() => undefined);
   return { ok: true, message: `${quest.title} completed.` };
 };
 

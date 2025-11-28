@@ -4,6 +4,7 @@ import { XpDomain } from '../core/XpSystem';
 import { WorldState } from '../world/WorldState';
 import { getAvot } from './AvotRegistry';
 import { getAvotQuestHint } from '../quests/QuestEngine';
+import { getCurrentSpireState } from '../crown/CrownController';
 
 const xpLabels: Record<XpDomain, string> = {
   [XpDomain.Craft]: 'craft',
@@ -76,6 +77,7 @@ export const getDialogue = (
     .map((trait) => `${trait.label} ${trait.level}`)
     .join(', ');
   const questHint = getAvotQuestHint(avotId, avot.currentBuilding);
+  const spireInsight = getCurrentSpireState().insights[0]?.summary;
 
   const parts = [
     buildingLine(avotId, avot.currentBuilding),
@@ -83,6 +85,7 @@ export const getDialogue = (
     moodLine(avot.mood),
     xpFocus ? `Your ${xpLabels[xpFocus[0] as XpDomain]} hums at ${xpFocus[1]}.` : null,
     traitLine ? `Traits: ${traitLine}.` : null,
+    spireInsight ? `The Crown notes: ${spireInsight}` : null,
     generalLine(avotId),
   ].filter(Boolean);
 

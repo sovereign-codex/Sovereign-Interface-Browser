@@ -15,6 +15,11 @@ import { buildingMetadata, getBuildingModule } from './core/Registry';
 import { AvotNpc, listAvots } from './avots/AvotRegistry';
 import { getPresenceSummary, tickPresenceEngine } from './avots/PresenceEngine';
 import { FortressShell } from './FortressShell';
+import { CrownSpirePanel } from './components/CrownSpirePanel';
+import { CrownSpireState } from './crown/CrownTypes';
+import { initCrownSpire, requestSpireScan } from './crown/CrownController';
+import { executeCommand } from '../core/commands/executor';
+import { getKernelState } from '../core/autonomy/kernel';
 
 const buildingActions = [
   { id: 'Workshop', actions: [{ id: 'simulate-craft', label: 'Simulate Craft' }] },
@@ -45,6 +50,8 @@ export const FortressSpatialShell: React.FC = () => {
   const [traitSnapshot, setTraitSnapshot] = useState<TraitSnapshot | null>(null);
   const [presenceByBuilding, setPresenceByBuilding] = useState<Record<string, AvotNpc[]>>({});
   const [avots, setAvots] = useState<AvotNpc[]>(() => listAvots());
+  const [crownState, setCrownState] = useState<CrownSpireState | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     loadWorldState();
@@ -59,6 +66,8 @@ export const FortressSpatialShell: React.FC = () => {
     tickPresenceEngine(loadedWorld, 'tick');
     setAvots(listAvots());
     setPresenceByBuilding(getPresenceSummary());
+    initCrownSpire({ worldState: loadedWorld });
+    requestSpireScan().then(setCrownState).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -98,6 +107,20 @@ export const FortressSpatialShell: React.FC = () => {
     }
   }, [spatial.active, spatial.enterSpatialMode, spatial.lastActivatedAt, spatial.mode]);
 
+  const handleSpireScan = async (): Promise<void> => {
+    setIsScanning(true);
+    try {
+      const state = await requestSpireScan();
+      setCrownState(state);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleSpireCommand = (cmd: string): void => {
+    executeCommand(cmd, { toggleTheme: () => undefined, getKernelState }).catch(() => undefined);
+  };
+
   const selectedBuildingMeta = useMemo(
     () => buildingMetadata.find((meta) => meta.id === selectedBuildingId) ?? null,
     [selectedBuildingId],
@@ -123,6 +146,30 @@ export const FortressSpatialShell: React.FC = () => {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+      <SpatialPane id="crown-spire" anchor="top" title="Crown Spire">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <button
+            type="button"
+            onClick={handleSpireScan}
+            disabled={isScanning}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(52,152,219,0.18)',
+              color: '#ecf0f1',
+              cursor: isScanning ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isScanning ? 'Scanning…' : 'Refresh Spire Scan'}
+          </button>
+        </div>
+        <CrownSpirePanel
+          state={crownState}
+          onRunCommand={handleSpireCommand}
+          onFocusBuilding={(id) => setSelectedBuildingId(id)}
+        />
+      </SpatialPane>
       <SpatialPane id="fortress-townhall" anchor="top" title="Town Hall">
         <TownHallBar iAmProfile={iAmProfile} traitSnapshot={traitSnapshot} onOpenProfile={() => undefined} />
       </SpatialPane>

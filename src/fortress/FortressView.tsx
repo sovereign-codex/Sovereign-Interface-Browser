@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import worldSeed from './world/worldSeed.json';
 import { TownHallBar } from './components/TownHallBar';
 import { FortressGrid } from './components/FortressGrid';
 import { BuildingPanel } from './components/BuildingPanel';
-import { logInfo } from '../core/autonomy/kernel';
+import { getKernelState, logInfo } from '../core/autonomy/kernel';
 import { loadIAmProfile, IAmProfile } from './core/IAmNode';
 import { recalculateTraitsFromXp, TraitSnapshot } from './core/Traits';
 import { getXpSnapshot, XpDomain, type XpSnapshot } from './core/XpSystem';
@@ -19,6 +19,10 @@ import { initQuestEngine, acceptQuestById, completeQuestById, QuestEngineContext
 import { getQuestById, getQuestLog } from './quests/QuestLog';
 import { applyRewards } from './quests/QuestRewards';
 import { getRecentTalosEvents } from './core/TalosBridge';
+import { CrownSpireState } from './crown/CrownTypes';
+import { initCrownSpire, requestSpireScan } from './crown/CrownController';
+import { CrownSpirePanel } from './components/CrownSpirePanel';
+import { executeCommand } from '../core/commands/executor';
 
 interface FortressViewProps {
   mode?: 'embedded' | 'full';
@@ -62,6 +66,10 @@ export const FortressView: React.FC<FortressViewProps> = ({
   const [avots, setAvots] = useState<AvotNpc[]>(() => listAvots());
   const [presenceByBuilding, setPresenceByBuilding] = useState<Record<string, AvotNpc[]>>({});
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [crownState, setCrownState] = useState<CrownSpireState | null>(null);
+  const [showCrownSpire, setShowCrownSpire] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [spireAttention, setSpireAttention] = useState<boolean>(false);
 
   const isStacked = orientation === 'portrait' || breakpoint === 'xs' || breakpoint === 'sm';
 
@@ -105,6 +113,11 @@ export const FortressView: React.FC<FortressViewProps> = ({
     refreshPresence(loadedWorld);
     initQuestEngine({ xpSnapshot: initialXp, traitSnapshot: recalculateTraitsFromXp(initialXp), worldState: loadedWorld });
     setQuests(getQuestLog(loadedWorld).quests);
+    initCrownSpire({ worldState: loadedWorld });
+    requestSpireScan().then((state) => {
+      setCrownState(state);
+      setSpireAttention(state.insights.length > 0 || state.recommendations.length > 0);
+    });
     onInitialized?.();
   }, [onInitialized]);
 
@@ -156,6 +169,7 @@ export const FortressView: React.FC<FortressViewProps> = ({
     const updatedWorld = getWorldState();
     refreshPresence(updatedWorld, 'xp');
     setQuests(getQuestLog(updatedWorld).quests);
+    setSpireAttention(true);
   };
 
   const handleAcceptQuest = (questId: string): void => {
@@ -186,7 +200,48 @@ export const FortressView: React.FC<FortressViewProps> = ({
     const updatedWorld = getWorldState();
     refreshPresence(updatedWorld, 'xp');
     setQuests(getQuestLog(updatedWorld).quests);
+    requestSpireScan()
+      .then((state) => {
+        setCrownState(state);
+        setSpireAttention(true);
+      })
+      .catch(() => undefined);
   };
+
+  const handleSpireScan = useCallback(async (): Promise<void> => {
+    setIsScanning(true);
+    try {
+      const state = await requestSpireScan();
+      setCrownState(state);
+      setSpireAttention(false);
+    } finally {
+      setIsScanning(false);
+    }
+  }, []);
+
+  const handleSpireCommand = (cmd: string): void => {
+    setSpireAttention(false);
+    executeCommand(cmd, { toggleTheme: () => undefined, getKernelState }).catch(() => undefined);
+  };
+
+  const handleFocusFromSpire = (buildingId: string): void => {
+    setSelectedBuildingId(buildingId);
+    setShowCrownSpire(true);
+    setSpireAttention(false);
+  };
+
+  useEffect(() => {
+    const handleNavigate = ((event: Event): void => {
+      const detail = (event as CustomEvent<{ openCrownSpire?: boolean }>).detail;
+      if (detail?.openCrownSpire) {
+        setShowCrownSpire(true);
+        handleSpireScan();
+      }
+    }) as EventListener;
+
+    window.addEventListener('sib:navigate', handleNavigate);
+    return () => window.removeEventListener('sib:navigate', handleNavigate);
+  }, [handleSpireScan]);
 
   const containerStyle: React.CSSProperties = {
     display: 'flex',
@@ -216,6 +271,40 @@ export const FortressView: React.FC<FortressViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => {
+            setShowCrownSpire((prev) => !prev);
+            setSpireAttention(false);
+          }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: spireAttention ? 'rgba(231, 76, 60, 0.18)' : 'rgba(255,255,255,0.04)',
+            color: '#ecf0f1',
+            cursor: 'pointer',
+          }}
+        >
+          Crown Spire {spireAttention ? '•' : ''}
+        </button>
+        <button
+          type="button"
+          onClick={handleSpireScan}
+          disabled={isScanning}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(52, 152, 219, 0.18)',
+            color: '#ecf0f1',
+            cursor: isScanning ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isScanning ? 'Scanning…' : 'Refresh Spire Scan'}
+        </button>
+      </div>
       <TownHallBar iAmProfile={iAmProfile} traitSnapshot={traitSnapshot} onOpenProfile={() => undefined} />
       <div style={containerStyle}>
         <div style={gridWrapperStyle}>
@@ -247,6 +336,15 @@ export const FortressView: React.FC<FortressViewProps> = ({
           />
         </div>
       </div>
+      {showCrownSpire && (
+        <div style={panelWrapperStyle}>
+          <CrownSpirePanel
+            state={crownState}
+            onRunCommand={handleSpireCommand}
+            onFocusBuilding={handleFocusFromSpire}
+          />
+        </div>
+      )}
       {mode === 'full' && worldState && (
         <div style={{ fontSize: 12, color: '#95a5a6', marginTop: 4 }}>
           Seed: {worldSeed.title} · Buildings unlocked: {worldState.unlockedBuildings.length} · Version: {worldState.worldVersion}

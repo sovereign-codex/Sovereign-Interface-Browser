@@ -22,6 +22,19 @@ export const toWidget = (buildingId: string): BuildingWidgetConfig | null => {
     } satisfies BuildingWidgetConfig;
   }
 
+  if (buildingId === 'CrownSpire') {
+    return {
+      id: 'CrownSpire',
+      title: 'Crown Spire',
+      description: 'High-level coherence, momentum, and guidance widget.',
+      widgetType: 'CrownSpireWidget',
+      bindings: {
+        modulePath: 'src/fortress/widgets/CrownSpireWidget.tsx',
+        module: 'CrownSpireWidget',
+      },
+    } satisfies BuildingWidgetConfig;
+  }
+
   const meta = buildingMetadata.find((item) => item.id === buildingId);
   if (!meta) return null;
 
@@ -40,5 +53,5 @@ export const toWidget = (buildingId: string): BuildingWidgetConfig | null => {
 export const getBuildingWidgetConfig = (buildingId: string): BuildingWidgetConfig | null => toWidget(buildingId);
 
 export const listBuildingWidgets = (): BuildingWidgetConfig[] =>
-  [toWidget('FortressOverview'), ...buildingMetadata.map((meta) => toWidget(meta.id))]
+  [toWidget('FortressOverview'), toWidget('CrownSpire'), ...buildingMetadata.map((meta) => toWidget(meta.id))]
     .filter((config): config is BuildingWidgetConfig => Boolean(config));
