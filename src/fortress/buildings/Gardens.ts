@@ -1,5 +1,7 @@
 import { logInfo } from '../../core/autonomy/kernel';
 import { BuildingActionResult, BuildingState } from '../core/types';
+import { recalculateTraitsFromXp } from '../core/Traits';
+import { grantXp, getXpSnapshot, XpDomain } from '../core/XpSystem';
 import { loadWorldState, updateWorldState } from '../world/WorldState';
 
 const state: BuildingState = {
@@ -44,6 +46,9 @@ export const runBuildingAction = (action: string, payload?: unknown): BuildingAc
   if (action === 'simulate-meditate') {
     const sessions = Number(state.metadata?.sessions ?? 0) + 1;
     state.metadata = { ...state.metadata, sessions, lastMeditation: new Date().toISOString() };
+    grantXp(XpDomain.Coherence, 5, 'Gardens:simulate-meditate', 'Gardens');
+    const snapshot = getXpSnapshot();
+    recalculateTraitsFromXp(snapshot);
   }
   logAction(action, payload);
   state.lastAction = action;

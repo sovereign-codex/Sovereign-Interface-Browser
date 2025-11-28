@@ -1,5 +1,7 @@
 import { logInfo } from '../../core/autonomy/kernel';
 import { BuildingActionResult, BuildingState } from '../core/types';
+import { recalculateTraitsFromXp } from '../core/Traits';
+import { grantXp, getXpSnapshot, XpDomain } from '../core/XpSystem';
 import { loadWorldState, updateWorldState } from '../world/WorldState';
 
 const state: BuildingState = {
@@ -47,6 +49,9 @@ export const runBuildingAction = (action: string, payload?: unknown): BuildingAc
   if (action === 'simulate-craft') {
     const current = Number(state.metadata?.blueprintCount ?? 0) + 1;
     state.metadata = { ...state.metadata, blueprintCount: current, lastCraftedAt: new Date().toISOString() };
+    grantXp(XpDomain.Craft, 5, 'Workshop:simulate-craft', 'Workshop');
+    const snapshot = getXpSnapshot();
+    recalculateTraitsFromXp(snapshot);
   }
   logAction(action, payload);
   state.lastAction = action;

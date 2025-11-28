@@ -1,5 +1,7 @@
 import React from 'react';
 import { BuildingState } from '../core/types';
+import { TraitSnapshot } from '../core/Traits';
+import { XpDomain, XpSnapshot } from '../core/XpSystem';
 
 interface BuildingPanelProps {
   buildingId: string | null;
@@ -7,6 +9,9 @@ interface BuildingPanelProps {
   description?: string | null;
   onAction: (actionId: string) => void;
   actions?: { id: string; label: string; detail?: string }[];
+  xpDomain?: XpDomain | null;
+  xpSnapshot?: XpSnapshot | null;
+  traitSnapshot?: TraitSnapshot | null;
 }
 
 export const BuildingPanel: React.FC<BuildingPanelProps> = ({
@@ -15,6 +20,9 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
   description,
   onAction,
   actions = [],
+  xpDomain,
+  xpSnapshot,
+  traitSnapshot,
 }) => {
   if (!buildingId) {
     return (
@@ -57,6 +65,25 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
       {buildingState && (
         <div style={{ fontSize: 13, lineHeight: 1.5 }}>
           <div>Status: {buildingState.status}</div>
+          {xpDomain && xpSnapshot && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Progress</div>
+              <div style={{ fontSize: 12, color: '#ecf0f1' }}>
+                This building earns XP in: <strong>{xpDomain}</strong>
+              </div>
+              <div style={{ fontSize: 12, color: '#dfe6e9' }}>
+                {(() => {
+                  const current = xpSnapshot.totalByDomain[xpDomain] ?? 0;
+                  const matchedTrait = traitSnapshot?.traits.find((trait) => trait.xpDomain === xpDomain);
+                  const nextThreshold = matchedTrait?.thresholds.find((value) => value > current) ?? null;
+                  const label = matchedTrait?.label ?? xpDomain;
+                  return nextThreshold
+                    ? `${label} XP: ${current} (next threshold: ${nextThreshold})`
+                    : `${label} XP: ${current}`;
+                })()}
+              </div>
+            </div>
+          )}
           {buildingState.metadata && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>Stats</div>

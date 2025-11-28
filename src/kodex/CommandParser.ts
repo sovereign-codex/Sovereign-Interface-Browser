@@ -1,6 +1,7 @@
 import { CommandIntent, SIOSManifest } from './KodexTypes';
 import { avotCommands } from './commands/avotCommands';
 import { defaultCommands } from './commands/defaultCommands';
+import { fortressCommands } from './commands/fortressCommands';
 import { systemCommands } from './commands/systemCommands';
 
 export interface CommandParseContext {
@@ -16,7 +17,12 @@ export interface CommandDefinition {
 export class CommandParser {
   private readonly definitions: CommandDefinition[];
 
-  constructor(definitions: CommandDefinition[] = [...defaultCommands, ...avotCommands, ...systemCommands]) {
+  constructor(definitions: CommandDefinition[] = [
+    ...defaultCommands,
+    ...fortressCommands,
+    ...avotCommands,
+    ...systemCommands,
+  ]) {
     this.definitions = definitions;
   }
 

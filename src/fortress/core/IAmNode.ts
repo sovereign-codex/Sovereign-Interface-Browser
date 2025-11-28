@@ -10,6 +10,7 @@ export interface IAmProfile {
   missionTrajectory: string;
   coherenceIndex: number;
   sovereignFlags: Record<string, boolean>;
+  traits: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +28,7 @@ const defaultProfile: IAmProfile = {
     initialized: true,
     authenticated: false,
   },
+  traits: {},
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -37,6 +39,7 @@ const cloneProfile = (state: IAmProfile): IAmProfile => ({
   ...state,
   talents: [...state.talents],
   sovereignFlags: { ...state.sovereignFlags },
+  traits: { ...state.traits },
 });
 
 export const getIAmProfile = (): IAmProfile => cloneProfile(profile);
@@ -48,7 +51,7 @@ export const saveIAmProfile = (): void => {
 export const loadIAmProfile = (): IAmProfile => {
   const stored = storage.getItem<IAmProfile>(STORAGE_KEY);
   if (stored) {
-    profile = cloneProfile(stored);
+    profile = cloneProfile({ ...defaultProfile, ...stored, traits: stored.traits ?? {} });
     return getIAmProfile();
   }
 
@@ -65,6 +68,7 @@ export const updateIAmProfile = (updates: Partial<IAmProfile>): IAmProfile => {
     sovereignFlags: updates.sovereignFlags
       ? { ...profile.sovereignFlags, ...updates.sovereignFlags }
       : profile.sovereignFlags,
+    traits: updates.traits ? { ...profile.traits, ...updates.traits } : profile.traits,
     updatedAt: new Date().toISOString(),
   };
   saveIAmProfile();
