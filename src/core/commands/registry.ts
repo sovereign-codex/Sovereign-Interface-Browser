@@ -16,6 +16,7 @@ import { getDialogue } from '../../fortress/avots/DialogueEngine';
 import { getTraits, recalculateTraitsFromXp } from '../../fortress/core/Traits';
 import { getRecentTalosEvents } from '../../fortress/core/TalosBridge';
 import { getXpSnapshot } from '../../fortress/core/XpSystem';
+import { getCurrentSpireState, initCrownSpire, requestSpireScan } from '../../fortress/crown/CrownController';
 import { activateSpatialMode, deactivateSpatialMode, getSpatialState, toggleSpatialModeState } from '../../spatial/SpatialContext';
 import {
   acceptQuestById,
@@ -39,12 +40,14 @@ export const getCommand = (id: string): CommandDefinition | undefined => registr
 
 export const listCommands = (): CommandDefinition[] => Array.from(registry.values());
 
-const navigateToFortress = (buildingId?: string): void => {
+const navigateToFortress = (buildingId?: string, options?: { openCrownSpire?: boolean }): void => {
   if (typeof window === 'undefined') return;
   if (buildingId) {
     window.sessionStorage.setItem('fortress.initialSelection', buildingId);
   }
-  window.dispatchEvent(new CustomEvent('sib:navigate', { detail: { path: '/fortress', buildingId } }));
+  window.dispatchEvent(
+    new CustomEvent('sib:navigate', { detail: { path: '/fortress', buildingId, openCrownSpire: options?.openCrownSpire } }),
+  );
 };
 
 const navigateToFortressSpatial = (): void => {
@@ -510,6 +513,70 @@ const fortressGridCommand: CommandDefinition = {
   },
 };
 
+const summarizeSpireMetrics = (state: ReturnType<typeof getCurrentSpireState>): string => {
+  const find = (id: string): number => Math.round(state.metrics.find((metric) => metric.id === id)?.value ?? 0);
+  return `Coherence: ${find('coherence')}, Momentum: ${find('momentum')}, Integrity: ${find('integrity')}, Exploration: ${find('exploration')}, Stability: ${find('stability')}.`;
+};
+
+const spireStatusCommand: CommandDefinition = {
+  id: 'spire.status',
+  description: 'Show Crown Spire metric summary',
+  handler: async () => {
+    initCrownSpire();
+    const state = getCurrentSpireState();
+    if (!state.lastScanAt) {
+      const scan = await requestSpireScan();
+      return { status: 'ok', message: summarizeSpireMetrics(scan), payload: scan } satisfies CommandHandlerResult;
+    }
+    return { status: 'ok', message: summarizeSpireMetrics(state), payload: state } satisfies CommandHandlerResult;
+  },
+};
+
+const spireScanCommand: CommandDefinition = {
+  id: 'spire.scan',
+  description: 'Run a new Crown Spire scan',
+  handler: async () => {
+    initCrownSpire();
+    const result = await requestSpireScan();
+    const highlights = result.insights.slice(0, 2).map((insight) => insight.summary);
+    const detail = highlights.length > 0 ? ` Highlights: ${highlights.join(' | ')}` : '';
+    return {
+      status: 'ok',
+      message: `Crown Spire scan complete.${detail}`,
+      payload: result,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const spireGuidanceCommand: CommandDefinition = {
+  id: 'spire.guidance',
+  description: 'Get focused guidance from the Crown Spire',
+  handler: async () => {
+    initCrownSpire();
+    logInfo('fortress.crown', '[CROWN] Guidance requested.');
+    let state = getCurrentSpireState();
+    if (!state.lastScanAt) {
+      state = await requestSpireScan();
+    }
+    const focus = state.recommendations.slice(0, 2).map((rec) => rec.label).join(' · ');
+    return {
+      status: 'ok',
+      message: focus ? `Guidance: ${focus}` : 'Guidance ready; run spire.scan for fresh signals.',
+      payload: state.recommendations,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const spireOpenCommand: CommandDefinition = {
+  id: 'spire.open',
+  description: 'Open the Crown Spire view',
+  handler: () => {
+    initCrownSpire();
+    navigateToFortress(undefined, { openCrownSpire: true });
+    return { status: 'ok', message: 'Opening Crown Spire view.' } satisfies CommandHandlerResult;
+  },
+};
+
 const avotWhereCommand: CommandDefinition = {
   id: 'avot.where',
   description: 'Show where each AVOT NPC is stationed',
@@ -724,6 +791,10 @@ const spatialStatusCommand: CommandDefinition = {
   fortressOpenCommand,
   fortressSpatialCommand,
   fortressSpatialOffCommand,
+  spireStatusCommand,
+  spireScanCommand,
+  spireGuidanceCommand,
+  spireOpenCommand,
   questListCommand,
   questActiveCommand,
   questCompletedCommand,

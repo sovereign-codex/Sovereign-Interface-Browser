@@ -22,6 +22,8 @@ export interface WorldState {
   avotLocations: Record<string, string>;
   avotMoods: Record<string, string>;
   quests: Quest[];
+  crownSpireLastScanAt?: string;
+  crownSpireLastMetrics?: Record<string, number>;
 }
 
 export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worldFlags' | 'xpByDomain' | 'xpHistory'>> & {
@@ -33,6 +35,8 @@ export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worl
   avotLocations?: Record<string, string>;
   avotMoods?: Record<string, string>;
   quests?: Quest[];
+  crownSpireLastScanAt?: string;
+  crownSpireLastMetrics?: Record<string, number>;
 };
 
 const storage = new SIBStorage('fortress_v1');
@@ -84,6 +88,8 @@ const defaultWorldState: WorldState = {
     Initiate: 'curious',
   },
   quests: [],
+  crownSpireLastScanAt: undefined,
+  crownSpireLastMetrics: undefined,
 };
 
 let worldState: WorldState = { ...defaultWorldState };
@@ -102,6 +108,8 @@ const cloneState = (state: WorldState): WorldState => ({
   avotLocations: { ...state.avotLocations },
   avotMoods: { ...state.avotMoods },
   quests: state.quests ? state.quests.map((quest) => ({ ...quest })) : [],
+  crownSpireLastScanAt: state.crownSpireLastScanAt,
+  crownSpireLastMetrics: state.crownSpireLastMetrics ? { ...state.crownSpireLastMetrics } : undefined,
 });
 
 const persist = (): void => {
@@ -127,6 +135,8 @@ export const loadWorldState = (): WorldState => {
       avotLocations: { ...defaultWorldState.avotLocations, ...(stored.avotLocations ?? {}) },
       avotMoods: { ...defaultWorldState.avotMoods, ...(stored.avotMoods ?? {}) },
       quests: stored.quests ?? [],
+      crownSpireLastScanAt: stored.crownSpireLastScanAt ?? defaultWorldState.crownSpireLastScanAt,
+      crownSpireLastMetrics: stored.crownSpireLastMetrics ?? defaultWorldState.crownSpireLastMetrics,
     };
   } else {
     worldState = { ...defaultWorldState };
@@ -183,6 +193,8 @@ export const updateWorldState = (updates: WorldStateUpdate): WorldState => {
     avotMoods: { ...worldState.avotMoods, ...(updates.avotMoods ?? {}) },
     worldVersion: updates.worldVersion ?? worldState.worldVersion ?? FORTRESS_WORLD_VERSION,
     quests: updates.quests ?? worldState.quests,
+    crownSpireLastScanAt: updates.crownSpireLastScanAt ?? worldState.crownSpireLastScanAt,
+    crownSpireLastMetrics: updates.crownSpireLastMetrics ?? worldState.crownSpireLastMetrics,
   };
   persist();
   return getWorldState();
