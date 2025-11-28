@@ -7,6 +7,10 @@ import { createTask, inspectTask, listTasks, cancelTask } from '../tasks/engine'
 import { getShortTermMemory } from '../memory/stm';
 import { getViolations, violationSummary } from '../memory/violations';
 import { getKernelState, logInfo } from '../autonomy/kernel';
+import { getWorldState, loadWorldState } from '../../fortress/world/WorldState';
+import { getGrid } from '../../fortress/world/WorldGrid';
+import { buildingMetadata, getBuildingModule, listBuildings as listFortressBuildings } from '../../fortress/core/Registry';
+import { getIAmProfile } from '../../fortress/core/IAmNode';
 import { CommandDefinition, CommandHandlerResult } from './types';
 
 const registry = new Map<string, CommandDefinition>();
@@ -263,7 +267,7 @@ const updateStatusCommand: CommandDefinition = {
       : 'never';
     return {
       status: 'ok',
-      message: `System ${snapshot.systemVersion}: ${snapshot.appliedCount} applied / ${snapshot.pendingCount} available (last check: ${lastChecked}).`,
+      message: `System ${snapshot.systemVersion}: ${snapshot.appliedCount} applied / ${snapshot.pendingCount} available (last check: ${lastChecked}). Fortress OS: ${snapshot.fortressVersionLabel}.`,
       payload: snapshot,
     } satisfies CommandHandlerResult;
   },
@@ -332,6 +336,82 @@ const updateMarkAppliedCommand: CommandDefinition = {
   },
 };
 
+const fortressStatusCommand: CommandDefinition = {
+  id: 'fortress.status',
+  description: 'Show Fortress OS status and grid',
+  handler: () => {
+    loadWorldState();
+    const world = getWorldState();
+    const grid = getGrid();
+    const profile = getIAmProfile();
+
+    return {
+      status: 'ok',
+      message: `Fortress OS ${world.worldVersion} ready with ${world.unlockedBuildings.length} buildings unlocked.`,
+      payload: {
+        townHall: {
+          id: profile.id,
+          title: profile.title,
+          coherenceIndex: profile.coherenceIndex,
+          essenceSignature: profile.essenceSignature,
+        },
+        grid,
+        unlockedBuildings: world.unlockedBuildings,
+        bindToIAmNode: world.bindToIAmNode,
+      },
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const fortressBuildingsCommand: CommandDefinition = {
+  id: 'fortress.buildings',
+  description: 'List Fortress OS building metadata',
+  handler: () => ({
+    status: 'ok',
+    message: `${buildingMetadata.length} Fortress building modules`,
+    payload: listFortressBuildings(),
+  }),
+};
+
+const fortressInspectCommand: CommandDefinition = {
+  id: 'fortress.inspect',
+  description: 'Inspect a Fortress building module',
+  handler: (args) => {
+    const buildingId = args.args[0];
+    if (!buildingId) return { status: 'error', message: 'Building name required' } satisfies CommandHandlerResult;
+
+    const match = buildingMetadata.find((meta) => meta.id.toLowerCase() === buildingId.toLowerCase());
+    if (!match) return { status: 'error', message: `Building not found: ${buildingId}` } satisfies CommandHandlerResult;
+
+    const module = getBuildingModule(match.id);
+    if (!module) return { status: 'error', message: `Module missing for ${match.id}` } satisfies CommandHandlerResult;
+
+    const state = module.getState();
+    return {
+      status: 'ok',
+      message: `Building ${match.id}`,
+      payload: {
+        metadata: match,
+        state,
+        description: module.getDescription(),
+      },
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const fortressGridCommand: CommandDefinition = {
+  id: 'fortress.grid',
+  description: 'Show the Fortress world grid layout',
+  handler: () => {
+    const grid = getGrid();
+    return {
+      status: 'ok',
+      message: 'Fortress world grid (3x3)',
+      payload: grid,
+    } satisfies CommandHandlerResult;
+  },
+};
+
 [
   helpCommand,
   pingCommand,
@@ -359,4 +439,8 @@ const updateMarkAppliedCommand: CommandDefinition = {
   updateListCommand,
   updatePreviewCommand,
   updateMarkAppliedCommand,
+  fortressStatusCommand,
+  fortressBuildingsCommand,
+  fortressInspectCommand,
+  fortressGridCommand,
 ].forEach(registerCommand);

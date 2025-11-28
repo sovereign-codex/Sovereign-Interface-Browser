@@ -1,6 +1,7 @@
 import { logError, logInfo } from './kernel';
 import { getUpdateStatus } from '../../suc/spm';
 import { AppliedUpdateRecord, SovereignUpdateManifest } from '../../suc/types';
+import { FORTRESS_VERSION_LABEL, FORTRESS_WORLD_VERSION } from '../../fortress/world/WorldState';
 
 export interface SucStatusSnapshot {
   systemVersion: string;
@@ -9,6 +10,8 @@ export interface SucStatusSnapshot {
   pendingCount: number;
   applied: AppliedUpdateRecord[];
   available: SovereignUpdateManifest[];
+  fortressWorldVersion: string;
+  fortressVersionLabel: string;
 }
 
 const snapshot: SucStatusSnapshot = {
@@ -17,6 +20,8 @@ const snapshot: SucStatusSnapshot = {
   pendingCount: 0,
   applied: [],
   available: [],
+  fortressWorldVersion: FORTRESS_WORLD_VERSION,
+  fortressVersionLabel: FORTRESS_VERSION_LABEL,
 };
 
 export const refreshStatus = async (): Promise<void> => {
@@ -28,6 +33,8 @@ export const refreshStatus = async (): Promise<void> => {
     snapshot.appliedCount = status.applied.length;
     snapshot.pendingCount = status.available.length;
     snapshot.lastUpdateCheckAt = new Date().toISOString();
+    snapshot.fortressWorldVersion = FORTRESS_WORLD_VERSION;
+    snapshot.fortressVersionLabel = FORTRESS_VERSION_LABEL;
     logInfo('suc.controller', `[SUC] Status refreshed: ${snapshot.appliedCount} applied, ${snapshot.pendingCount} available.`);
   } catch (error) {
     logError('suc.controller', '[SUC] Failed to refresh update status', { error });

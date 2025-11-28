@@ -1,0 +1,30 @@
+{
+  "version": "0.1.0",
+  "grid": [
+    ["Workshop", null, "Observatory"],
+    [null, "TownHall", null],
+    ["Gardens", "GuardTower", "PortalGate"]
+  ],
+  "buildingMetadata": {
+    "TownHall": { "title": "I-AM Town Hall", "archetype": "core" },
+    "Workshop": { "title": "Workshop", "archetype": "craft" },
+    "Library": { "title": "Library", "archetype": "memory" },
+    "Observatory": { "title": "Observatory", "archetype": "insight" },
+    "Gardens": { "title": "Gardens", "archetype": "wellness" },
+    "GuardTower": { "title": "Guard Tower", "archetype": "security" },
+    "PortalGate": { "title": "Portal Gate", "archetype": "gateway" }
+  },
+  "unlockedBuildings": [
+    "TownHall",
+    "Workshop",
+    "Library",
+    "Observatory",
+    "Gardens",
+    "GuardTower",
+    "PortalGate"
+  ],
+  "worldFlags": {
+    "initialized": true,
+    "bindToIAmNode": true
+  }
+}
