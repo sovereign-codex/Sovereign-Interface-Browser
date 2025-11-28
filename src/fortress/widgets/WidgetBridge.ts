@@ -9,6 +9,19 @@ export interface BuildingWidgetConfig {
 }
 
 export const toWidget = (buildingId: string): BuildingWidgetConfig | null => {
+  if (buildingId === 'FortressOverview') {
+    return {
+      id: 'FortressOverview',
+      title: 'Fortress Overview',
+      description: 'Compact Fortress grid and Town Hall summary.',
+      widgetType: 'FortressWidget',
+      bindings: {
+        modulePath: 'src/fortress/widgets/FortressWidget.tsx',
+        module: 'FortressWidget',
+      },
+    } satisfies BuildingWidgetConfig;
+  }
+
   const meta = buildingMetadata.find((item) => item.id === buildingId);
   if (!meta) return null;
 
@@ -27,6 +40,5 @@ export const toWidget = (buildingId: string): BuildingWidgetConfig | null => {
 export const getBuildingWidgetConfig = (buildingId: string): BuildingWidgetConfig | null => toWidget(buildingId);
 
 export const listBuildingWidgets = (): BuildingWidgetConfig[] =>
-  buildingMetadata
-    .map((meta) => toWidget(meta.id))
+  [toWidget('FortressOverview'), ...buildingMetadata.map((meta) => toWidget(meta.id))]
     .filter((config): config is BuildingWidgetConfig => Boolean(config));

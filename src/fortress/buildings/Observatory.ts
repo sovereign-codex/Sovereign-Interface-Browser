@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     metrics: ['insight', 'intuition'],
     hooks: ['reflection'],
+    insightsFound: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, { action, payload });
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, { action, payload });
 };
 
 export const getState = (): BuildingState => cloneState();
@@ -39,9 +40,15 @@ export const getDescription = (): string =>
   'Observatory for insight metrics, reflection hooks, and intuition engine placeholders.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-scan') {
+    const insightsFound = Number(state.metadata?.insightsFound ?? 0) + 1;
+    state.metadata = { ...state.metadata, insightsFound, lastScan: new Date().toISOString() };
+  }
   logAction(action, payload);
   state.lastAction = action;
-  return { ok: true, detail: `Observatory captured ${action}`, data: payload };
+  updateWorldState({ worldFlags: { observatoryOnline: true } });
+  return { ok: true, detail: `Observatory captured ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

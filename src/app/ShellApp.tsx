@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import config from '../config/default-config.json';
 import { AVOTBridge } from '../avot/AVOTBridge';
 import { AppEvents, CommandRouter } from '../core/CommandRouter';
@@ -19,6 +19,7 @@ import { AutonomyHud } from '../ui/AutonomyHud';
 import { CommandContext } from '../core/commands/types';
 import { getKernelState } from '../core/autonomy/kernel';
 import { refreshStatus as refreshSucStatus } from '../core/autonomy/sucController';
+import { FortressShell } from '../fortress/FortressShell';
 
 export const ShellApp: React.FC = () => {
   const { theme, toggleTheme } = useSovereignTheme();
@@ -36,6 +37,7 @@ export const ShellApp: React.FC = () => {
   const [manifest, setManifest] = useState<SIOSManifest | null>(null);
   const [identity, setIdentity] = useState<IdentityProfile>(() => identityVault.getActiveIdentity());
   const [ready, setReady] = useState(false);
+  const [currentPath, setCurrentPath] = useState<string>(() => (typeof window !== 'undefined' ? window.location.pathname : '/'));
   const commandContext = useMemo<CommandContext>(
     () => ({
       toggleTheme,
@@ -68,6 +70,34 @@ export const ShellApp: React.FC = () => {
       unsubscribers.forEach((unsub) => unsub());
     };
   }, [avot, eventBus, kodex, kodexLink, sessionManager]);
+
+  const navigate = useCallback(
+    (path: string): void => {
+      if (typeof window === 'undefined') return;
+      window.history.pushState({}, '', path);
+      setCurrentPath(path);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const handlePopState = (): void => {
+      setCurrentPath(typeof window !== 'undefined' ? window.location.pathname : '/');
+    };
+    const handleNavigate = ((event: Event): void => {
+      const detail = (event as CustomEvent<{ path?: string }>).detail;
+      if (detail?.path) {
+        navigate(detail.path);
+      }
+    }) as EventListener;
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('sib:navigate', handleNavigate as EventListener);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('sib:navigate', handleNavigate as EventListener);
+    };
+  }, [navigate]);
 
   const latestResult: CommandResult | undefined = history[0]?.result;
   const shellStyle: React.CSSProperties = useMemo(
@@ -110,19 +140,43 @@ export const ShellApp: React.FC = () => {
           <div style={{ fontWeight: 700, letterSpacing: '0.02em' }}>{config.appName}</div>
           <div style={{ color: theme.accent, fontSize: 12 }}>Session {sessionManager.sessionId}</div>
         </div>
-        <div style={{ fontSize: 12, color: ready ? '#45a29e' : '#c5c6c7' }}>{ready ? 'Ready' : 'Booting manifest...'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => navigate('/fortress')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(46,204,113,0.1)',
+              color: '#ecf0f1',
+              cursor: 'pointer',
+            }}
+          >
+            Enter Fortress
+          </button>
+          <div style={{ fontSize: 12, color: ready ? '#45a29e' : '#c5c6c7' }}>
+            {ready ? 'Ready' : 'Booting manifest...'}
+          </div>
+        </div>
       </header>
 
-      <main style={mainLayout}>
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Viewport entries={history} latestAudit={auditLog} />
-          <Omnibar placeholder={config.omnibar.placeholder} disabled={!ready} context={commandContext} />
-        </section>
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <TymePanel identity={identity} manifest={manifest} onRefreshIdentity={() => setIdentity(identityVault.getActiveIdentity())} />
-          <HouseOfTymeRadial sessionId={sessionManager.sessionId} status={latestResult?.status ?? 'idle'} />
-        </section>
-      </main>
+      {currentPath === '/fortress' ? (
+        <div style={{ padding: 16 }}>
+          <FortressShell mode="full" />
+        </div>
+      ) : (
+        <main style={mainLayout}>
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Viewport entries={history} latestAudit={auditLog} />
+            <Omnibar placeholder={config.omnibar.placeholder} disabled={!ready} context={commandContext} />
+          </section>
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <TymePanel identity={identity} manifest={manifest} onRefreshIdentity={() => setIdentity(identityVault.getActiveIdentity())} />
+            <HouseOfTymeRadial sessionId={sessionManager.sessionId} status={latestResult?.status ?? 'idle'} />
+          </section>
+        </main>
+      )}
       <AutonomyHud />
     </div>
   );

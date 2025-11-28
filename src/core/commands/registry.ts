@@ -23,6 +23,14 @@ export const getCommand = (id: string): CommandDefinition | undefined => registr
 
 export const listCommands = (): CommandDefinition[] => Array.from(registry.values());
 
+const navigateToFortress = (buildingId?: string): void => {
+  if (typeof window === 'undefined') return;
+  if (buildingId) {
+    window.sessionStorage.setItem('fortress.initialSelection', buildingId);
+  }
+  window.dispatchEvent(new CustomEvent('sib:navigate', { detail: { path: '/fortress', buildingId } }));
+};
+
 const helpCommand: CommandDefinition = {
   id: 'help',
   description: 'List available commands',
@@ -363,6 +371,15 @@ const fortressStatusCommand: CommandDefinition = {
   },
 };
 
+const fortressOpenCommand: CommandDefinition = {
+  id: 'fortress.open',
+  description: 'Open Fortress OS view',
+  handler: () => {
+    navigateToFortress();
+    return { status: 'ok', message: 'Opening Fortress OS view.' } satisfies CommandHandlerResult;
+  },
+};
+
 const fortressBuildingsCommand: CommandDefinition = {
   id: 'fortress.buildings',
   description: 'List Fortress OS building metadata',
@@ -387,9 +404,10 @@ const fortressInspectCommand: CommandDefinition = {
     if (!module) return { status: 'error', message: `Module missing for ${match.id}` } satisfies CommandHandlerResult;
 
     const state = module.getState();
+    navigateToFortress(match.id);
     return {
       status: 'ok',
-      message: `Building ${match.id}`,
+      message: `Building ${match.id} — ${module.getDescription()}`,
       payload: {
         metadata: match,
         state,
@@ -439,6 +457,7 @@ const fortressGridCommand: CommandDefinition = {
   updateListCommand,
   updatePreviewCommand,
   updateMarkAppliedCommand,
+  fortressOpenCommand,
   fortressStatusCommand,
   fortressBuildingsCommand,
   fortressInspectCommand,
