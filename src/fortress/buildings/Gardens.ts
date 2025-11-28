@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     rituals: ['coherence', 'grounding'],
     supports: ['breathwork'],
+    sessions: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, { action, payload });
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, { action, payload });
 };
 
 export const getState = (): BuildingState => cloneState();
@@ -39,9 +40,15 @@ export const getDescription = (): string =>
   'Gardens for coherence rituals, breathworks, and energy grounding nodes.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-meditate') {
+    const sessions = Number(state.metadata?.sessions ?? 0) + 1;
+    state.metadata = { ...state.metadata, sessions, lastMeditation: new Date().toISOString() };
+  }
   logAction(action, payload);
   state.lastAction = action;
-  return { ok: true, detail: `Gardens hosted ${action}`, data: payload };
+  updateWorldState({ worldFlags: { gardensActive: true } });
+  return { ok: true, detail: `Gardens hosted ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

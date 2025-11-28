@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     scrollStorage: true,
     indices: ['memory', 'docs'],
+    pagesRead: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, { action, payload });
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, { action, payload });
 };
 
 export const getState = (): BuildingState => cloneState();
@@ -38,9 +39,15 @@ export const levelUp = (): BuildingState => {
 export const getDescription = (): string => 'Library for scroll storage, memory APIs, and document indexing placeholders.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-study') {
+    const pagesRead = Number(state.metadata?.pagesRead ?? 0) + 5;
+    state.metadata = { ...state.metadata, pagesRead, lastStudyAt: new Date().toISOString() };
+  }
   logAction(action, payload);
   state.lastAction = action;
-  return { ok: true, detail: `Library performed ${action}`, data: payload };
+  updateWorldState({ worldFlags: { libraryActive: true } });
+  return { ok: true, detail: `Library performed ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

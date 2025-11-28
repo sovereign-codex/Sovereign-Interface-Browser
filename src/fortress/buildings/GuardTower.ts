@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     scans: ['fragmentation'],
     metrics: ['boundaryIntegrity'],
+    alertsChecked: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, { action, payload });
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, { action, payload });
 };
 
 export const getState = (): BuildingState => cloneState();
@@ -39,9 +40,15 @@ export const getDescription = (): string =>
   'Guard Tower for fragmentation scans, shadow work logs, and boundary integrity indices.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-scan-boundaries') {
+    const alertsChecked = Number(state.metadata?.alertsChecked ?? 0) + 1;
+    state.metadata = { ...state.metadata, alertsChecked, lastBoundaryCheck: new Date().toISOString() };
+  }
   logAction(action, payload);
   state.lastAction = action;
-  return { ok: true, detail: `GuardTower processed ${action}`, data: payload };
+  updateWorldState({ worldFlags: { guardTowerOnline: true } });
+  return { ok: true, detail: `GuardTower processed ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

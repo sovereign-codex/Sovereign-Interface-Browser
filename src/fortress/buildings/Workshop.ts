@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     capabilities: ['crafting', 'skill-tree'],
     bindings: ['learning-module'],
+    blueprintCount: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, {
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, {
     action,
     payload,
   });
@@ -42,9 +43,15 @@ export const getDescription = (): string =>
   'Workshop for capability crafting, learning module binding, and skill-tree placeholders.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-craft') {
+    const current = Number(state.metadata?.blueprintCount ?? 0) + 1;
+    state.metadata = { ...state.metadata, blueprintCount: current, lastCraftedAt: new Date().toISOString() };
+  }
   logAction(action, payload);
   state.lastAction = action;
-  return { ok: true, detail: `Workshop executed ${action}`, data: payload };
+  updateWorldState({ worldFlags: { workshopActive: true } });
+  return { ok: true, detail: `Workshop executed ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

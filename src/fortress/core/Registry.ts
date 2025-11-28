@@ -30,7 +30,7 @@ const townHallModule: BuildingModule = {
   },
   getDescription: (): string => 'I-AM Town Hall core identity node.',
   runBuildingAction: (action: string): BuildingActionResult => {
-    logInfo('fortress.building', `[FORTRESS] Building action invoked: TownHall → ${action}`, { action });
+    logInfo('fortress.building', `[FORTRESS] Action executed: TownHall.${action}`, { action });
     loadWorldState();
     return { ok: true, detail: `TownHall processed ${action}` };
   },

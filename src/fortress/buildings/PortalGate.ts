@@ -9,6 +9,7 @@ const state: BuildingState = {
   metadata: {
     integrations: ['Talos'],
     triggers: ['mission', 'event'],
+    portalVisits: 0,
   },
 };
 
@@ -23,7 +24,7 @@ const syncLevel = (): void => {
 };
 
 const logAction = (action: string, payload?: unknown): void => {
-  logInfo('fortress.building', `[FORTRESS] Building action invoked: ${state.id} → ${action}`, { action, payload });
+  logInfo('fortress.building', `[FORTRESS] Action executed: ${state.id}.${action}`, { action, payload });
 };
 
 export const getState = (): BuildingState => cloneState();
@@ -39,11 +40,16 @@ export const getDescription = (): string =>
   'Portal Gate for quest launching, Talos integration, and mission/event triggers.';
 
 export const runBuildingAction = (action: string, payload?: unknown): BuildingActionResult => {
+  loadWorldState();
+  if (action === 'simulate-open-portal') {
+    const portalVisits = Number(state.metadata?.portalVisits ?? 0) + 1;
+    state.metadata = { ...state.metadata, portalVisits, lastPortal: new Date().toISOString() };
+    updateWorldState({ lastPortalVisited: `Portal-${portalVisits}` });
+  }
   logAction(action, payload);
   state.lastAction = action;
-  loadWorldState();
-  updateWorldState({ lastPortalVisited: action });
-  return { ok: true, detail: `PortalGate routed ${action}`, data: payload };
+  updateWorldState({ worldFlags: { portalGateActive: true } });
+  return { ok: true, detail: `PortalGate routed ${action}`, data: { metadata: state.metadata } };
 };
 
 export const bindToIAmNode = (): void => {

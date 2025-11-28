@@ -1,0 +1,16 @@
+{
+  "title": "Fortress OS Seed",
+  "grid": [
+    ["Workshop", null, "Observatory"],
+    [null, "TownHall", null],
+    ["Gardens", "GuardTower", "PortalGate"]
+  ],
+  "archetypes": {
+    "Workshop": "Crafts capabilities and skills",
+    "Library": "Stores scrolls and knowledge",
+    "Observatory": "Scans insights and metrics",
+    "Gardens": "Cultivates grounding and wellness",
+    "GuardTower": "Observes boundaries and alerts",
+    "PortalGate": "Manages portals and quests"
+  }
+}
