@@ -14,7 +14,8 @@ import { getIAmProfile } from '../../fortress/core/IAmNode';
 import { getAvot, listAvots, setAvotLocation, setAvotMood } from '../../fortress/avots/AvotRegistry';
 import { getDialogue } from '../../fortress/avots/DialogueEngine';
 import { getTraits } from '../../fortress/core/Traits';
-import { CommandDefinition, CommandHandlerResult } from './types';
+import { activateSpatialMode, deactivateSpatialMode, getSpatialState, toggleSpatialModeState } from '../../spatial/SpatialContext';
+import { CommandDefinition, CommandHandlerResult, CommandContext } from './types';
 
 const registry = new Map<string, CommandDefinition>();
 
@@ -32,6 +33,30 @@ const navigateToFortress = (buildingId?: string): void => {
     window.sessionStorage.setItem('fortress.initialSelection', buildingId);
   }
   window.dispatchEvent(new CustomEvent('sib:navigate', { detail: { path: '/fortress', buildingId } }));
+};
+
+const navigateToFortressSpatial = (): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('sib:navigate', { detail: { path: '/fortress/spatial' } }));
+};
+
+const resolveSpatialControls = (
+  ctx: CommandContext,
+): {
+  enterSpatialMode: typeof activateSpatialMode;
+  exitSpatialMode: typeof deactivateSpatialMode;
+  toggleSpatialMode: typeof toggleSpatialModeState;
+  getSpatialState: typeof getSpatialState;
+} => {
+  if (ctx.spatial) {
+    return ctx.spatial;
+  }
+  return {
+    enterSpatialMode: activateSpatialMode,
+    exitSpatialMode: deactivateSpatialMode,
+    toggleSpatialMode: toggleSpatialModeState,
+    getSpatialState: getSpatialState,
+  };
 };
 
 const helpCommand: CommandDefinition = {
@@ -278,7 +303,7 @@ const updateStatusCommand: CommandDefinition = {
       : 'never';
     return {
       status: 'ok',
-      message: `System ${snapshot.systemVersion}: ${snapshot.appliedCount} applied / ${snapshot.pendingCount} available (last check: ${lastChecked}). Fortress OS: ${snapshot.fortressVersionLabel}.`,
+      message: `System ${snapshot.systemVersion}: ${snapshot.appliedCount} applied / ${snapshot.pendingCount} available (last check: ${lastChecked}). Fortress OS: ${snapshot.fortressVersionLabel}. Spatial Mode: ${snapshot.spatialSupport}.`,
       payload: snapshot,
     } satisfies CommandHandlerResult;
   },
@@ -380,6 +405,37 @@ const fortressOpenCommand: CommandDefinition = {
   handler: () => {
     navigateToFortress();
     return { status: 'ok', message: 'Opening Fortress OS view.' } satisfies CommandHandlerResult;
+  },
+};
+
+const fortressSpatialCommand: CommandDefinition = {
+  id: 'fortress.spatial',
+  description: 'Enter Fortress spatial mode simulation',
+  handler: (_, ctx) => {
+    const controls = resolveSpatialControls(ctx);
+    const state = controls.getSpatialState();
+    const targetMode = state.supported ? state.mode : 'simulated';
+    const next = controls.enterSpatialMode(targetMode);
+    navigateToFortressSpatial();
+    logInfo('fortress.spatial', '[SPATIAL] Entered Fortress spatial mode.');
+    return {
+      status: 'ok',
+      message: state.supported
+        ? 'Spatial mode activated. Opening Fortress Spatial Shell.'
+        : 'Spatial simulation mode activated (no XR capability detected).',
+      payload: next,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const fortressSpatialOffCommand: CommandDefinition = {
+  id: 'fortress.spatial.off',
+  description: 'Exit Fortress spatial mode',
+  handler: (_, ctx) => {
+    const controls = resolveSpatialControls(ctx);
+    const next = controls.exitSpatialMode();
+    logInfo('fortress.spatial', '[SPATIAL] Exited Fortress spatial mode.');
+    return { status: 'ok', message: 'Spatial mode deactivated.', payload: next } satisfies CommandHandlerResult;
   },
 };
 
@@ -500,6 +556,20 @@ const avotTalkCommand: CommandDefinition = {
   },
 };
 
+const spatialStatusCommand: CommandDefinition = {
+  id: 'spatial.status',
+  description: 'Show current spatial capability status',
+  handler: (_, ctx) => {
+    const controls = resolveSpatialControls(ctx);
+    const state = controls.getSpatialState();
+    return {
+      status: 'ok',
+      message: `Spatial status: supported=${state.supported}, active=${state.active}, mode=${state.mode}.`,
+      payload: state,
+    } satisfies CommandHandlerResult;
+  },
+};
+
 [
   helpCommand,
   pingCommand,
@@ -528,6 +598,9 @@ const avotTalkCommand: CommandDefinition = {
   updatePreviewCommand,
   updateMarkAppliedCommand,
   fortressOpenCommand,
+  fortressSpatialCommand,
+  fortressSpatialOffCommand,
+  spatialStatusCommand,
   fortressStatusCommand,
   fortressBuildingsCommand,
   fortressInspectCommand,

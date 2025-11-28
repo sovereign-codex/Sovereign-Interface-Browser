@@ -1,4 +1,5 @@
 import { KernelState } from '../autonomy/kernel';
+import { SpatialState } from '../../spatial/SpatialContext';
 
 export type CommandId = string;
 
@@ -10,6 +11,12 @@ export interface CommandArgs {
 export interface CommandContext {
   toggleTheme: () => void;
   getKernelState: () => KernelState;
+  spatial?: {
+    enterSpatialMode: (modeOverride?: SpatialState['mode']) => SpatialState;
+    exitSpatialMode: () => SpatialState;
+    toggleSpatialMode: () => SpatialState;
+    getSpatialState: () => SpatialState;
+  };
 }
 
 export interface CommandHandlerResult {
