@@ -13,8 +13,20 @@ import { buildingMetadata, getBuildingModule, listBuildings as listFortressBuild
 import { getIAmProfile } from '../../fortress/core/IAmNode';
 import { getAvot, listAvots, setAvotLocation, setAvotMood } from '../../fortress/avots/AvotRegistry';
 import { getDialogue } from '../../fortress/avots/DialogueEngine';
-import { getTraits } from '../../fortress/core/Traits';
+import { getTraits, recalculateTraitsFromXp } from '../../fortress/core/Traits';
+import { getRecentTalosEvents } from '../../fortress/core/TalosBridge';
+import { getXpSnapshot } from '../../fortress/core/XpSystem';
 import { activateSpatialMode, deactivateSpatialMode, getSpatialState, toggleSpatialModeState } from '../../spatial/SpatialContext';
+import {
+  acceptQuestById,
+  completeQuestById,
+  failQuestById,
+  getActiveQuests,
+  getCompletedQuests,
+  initQuestEngine,
+} from '../../fortress/quests/QuestEngine';
+import { applyRewards } from '../../fortress/quests/QuestRewards';
+import { getQuestById, getQuestLog } from '../../fortress/quests/QuestLog';
 import { CommandDefinition, CommandHandlerResult, CommandContext } from './types';
 
 const registry = new Map<string, CommandDefinition>();
@@ -57,6 +69,15 @@ const resolveSpatialControls = (
     toggleSpatialMode: toggleSpatialModeState,
     getSpatialState: getSpatialState,
   };
+};
+
+const buildQuestContext = () => {
+  initQuestEngine();
+  const xpSnapshot = getXpSnapshot();
+  const traitSnapshot = recalculateTraitsFromXp(xpSnapshot);
+  const worldState = getWorldState();
+  const recentTalosEvents = getRecentTalosEvents();
+  return { xpSnapshot, traitSnapshot, worldState, recentTalosEvents };
 };
 
 const helpCommand: CommandDefinition = {
@@ -556,6 +577,109 @@ const avotTalkCommand: CommandDefinition = {
   },
 };
 
+const questListCommand: CommandDefinition = {
+  id: 'quest.list',
+  description: 'List all Fortress quests',
+  handler: () => {
+    initQuestEngine();
+    const quests = getQuestLog().quests;
+    return {
+      status: 'ok',
+      message: `${quests.length} quests loaded`,
+      payload: quests.map(({ id, title, status, buildingId }) => ({ id, title, status, buildingId })),
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const questActiveCommand: CommandDefinition = {
+  id: 'quest.active',
+  description: 'List accepted quests',
+  handler: () => {
+    initQuestEngine();
+    const quests = getActiveQuests();
+    return {
+      status: 'ok',
+      message: `${quests.length} active quest(s)`,
+      payload: quests,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const questCompletedCommand: CommandDefinition = {
+  id: 'quest.completed',
+  description: 'List completed quests',
+  handler: () => {
+    initQuestEngine();
+    const quests = getCompletedQuests();
+    return {
+      status: 'ok',
+      message: `${quests.length} completed quest(s)`,
+      payload: quests,
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const questInspectCommand: CommandDefinition = {
+  id: 'quest.inspect',
+  description: 'Inspect a quest by id',
+  handler: (args) => {
+    initQuestEngine();
+    const questId = args.args[0];
+    if (!questId) return { status: 'error', message: 'Quest id required' } satisfies CommandHandlerResult;
+    const quest = getQuestById(questId);
+    if (!quest) return { status: 'error', message: `Quest not found: ${questId}` } satisfies CommandHandlerResult;
+    return { status: 'ok', message: `${quest.title} (${quest.status})`, payload: quest } satisfies CommandHandlerResult;
+  },
+};
+
+const questAcceptCommand: CommandDefinition = {
+  id: 'quest.accept',
+  description: 'Accept a quest by id',
+  handler: (args) => {
+    const questId = args.args[0];
+    if (!questId) return { status: 'error', message: 'Quest id required' } satisfies CommandHandlerResult;
+    const context = buildQuestContext();
+    const result = acceptQuestById(questId, context);
+    return {
+      status: result.ok ? 'ok' : 'error',
+      message: result.message,
+      payload: getQuestById(questId),
+    } satisfies CommandHandlerResult;
+  },
+};
+
+const questCompleteCommand: CommandDefinition = {
+  id: 'quest.complete',
+  description: 'Complete a quest and apply rewards',
+  handler: (args) => {
+    const questId = args.args[0];
+    if (!questId) return { status: 'error', message: 'Quest id required' } satisfies CommandHandlerResult;
+    const context = buildQuestContext();
+    const result = completeQuestById(questId, context);
+    if (result.ok) {
+      const quest = getQuestById(questId);
+      if (quest) {
+        applyRewards(quest);
+      }
+    }
+    return { status: result.ok ? 'ok' : 'error', message: result.message, payload: getQuestById(questId) } satisfies CommandHandlerResult;
+  },
+};
+
+const questFailCommand: CommandDefinition = {
+  id: 'quest.fail',
+  description: 'Mark a quest as failed',
+  handler: (args) => {
+    const questId = args.args[0];
+    const reason = args.rawArgs.split(' ').slice(1).join(' ').trim();
+    if (!questId) return { status: 'error', message: 'Quest id required' } satisfies CommandHandlerResult;
+    const quest = getQuestById(questId);
+    if (!quest) return { status: 'error', message: `Quest not found: ${questId}` } satisfies CommandHandlerResult;
+    failQuestById(questId, reason || undefined);
+    return { status: 'ok', message: `Quest ${questId} failed${reason ? `: ${reason}` : ''}` } satisfies CommandHandlerResult;
+  },
+};
+
 const spatialStatusCommand: CommandDefinition = {
   id: 'spatial.status',
   description: 'Show current spatial capability status',
@@ -600,6 +724,13 @@ const spatialStatusCommand: CommandDefinition = {
   fortressOpenCommand,
   fortressSpatialCommand,
   fortressSpatialOffCommand,
+  questListCommand,
+  questActiveCommand,
+  questCompletedCommand,
+  questInspectCommand,
+  questAcceptCommand,
+  questCompleteCommand,
+  questFailCommand,
   spatialStatusCommand,
   fortressStatusCommand,
   fortressBuildingsCommand,

@@ -5,6 +5,8 @@ import { TraitSnapshot } from '../core/Traits';
 import { XpDomain, XpSnapshot } from '../core/XpSystem';
 import { WorldState } from '../world/WorldState';
 import { AvotPanel } from './AvotPanel';
+import { QuestPanel } from './QuestPanel';
+import { Quest } from '../quests/QuestTypes';
 
 interface BuildingPanelProps {
   buildingId: string | null;
@@ -17,6 +19,9 @@ interface BuildingPanelProps {
   traitSnapshot?: TraitSnapshot | null;
   avots?: AvotNpc[];
   worldState?: WorldState | null;
+  quests?: Quest[];
+  onAcceptQuest?: (id: string) => void;
+  onCompleteQuest?: (id: string) => void;
 }
 
 export const BuildingPanel: React.FC<BuildingPanelProps> = ({
@@ -30,6 +35,9 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
   traitSnapshot,
   avots = [],
   worldState,
+  quests = [],
+  onAcceptQuest,
+  onCompleteQuest,
 }) => {
   if (!buildingId) {
     return (
@@ -122,6 +130,15 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
             ))}
           </div>
         </div>
+      )}
+
+      {buildingId && quests.length > 0 && (
+        <QuestPanel
+          buildingId={buildingId}
+          quests={quests}
+          onAccept={(id) => onAcceptQuest?.(id)}
+          onComplete={(id) => onCompleteQuest?.(id)}
+        />
       )}
 
       {actions.length > 0 && (

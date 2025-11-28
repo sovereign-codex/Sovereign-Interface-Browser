@@ -1,5 +1,7 @@
 import { logInfo } from '../../core/autonomy/kernel';
 import { SIBStorage } from '../../storage/SIBStorage';
+import type { Quest } from '../quests/QuestTypes';
+import { ensureSeedQuestsInitialized } from '../quests/QuestSeeder';
 import type { XpDomain, XpLedgerEntry } from '../core/XpSystem';
 
 export const FORTRESS_WORLD_VERSION = '0.1.0';
@@ -19,6 +21,7 @@ export interface WorldState {
   traits: Record<string, number>;
   avotLocations: Record<string, string>;
   avotMoods: Record<string, string>;
+  quests: Quest[];
 }
 
 export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worldFlags' | 'xpByDomain' | 'xpHistory'>> & {
@@ -29,6 +32,7 @@ export type WorldStateUpdate = Partial<Omit<WorldState, 'buildingLevels' | 'worl
   traits?: Record<string, number>;
   avotLocations?: Record<string, string>;
   avotMoods?: Record<string, string>;
+  quests?: Quest[];
 };
 
 const storage = new SIBStorage('fortress_v1');
@@ -79,10 +83,12 @@ const defaultWorldState: WorldState = {
     Fabricator: 'ready',
     Initiate: 'curious',
   },
+  quests: [],
 };
 
 let worldState: WorldState = { ...defaultWorldState };
 let initialized = false;
+let loading = false;
 
 const cloneState = (state: WorldState): WorldState => ({
   ...state,
@@ -95,6 +101,7 @@ const cloneState = (state: WorldState): WorldState => ({
   traits: { ...state.traits },
   avotLocations: { ...state.avotLocations },
   avotMoods: { ...state.avotMoods },
+  quests: state.quests ? state.quests.map((quest) => ({ ...quest })) : [],
 });
 
 const persist = (): void => {
@@ -102,7 +109,12 @@ const persist = (): void => {
 };
 
 export const loadWorldState = (): WorldState => {
+  if (loading) {
+    return getWorldState();
+  }
+  loading = true;
   const stored = storage.getItem<WorldState>(STORAGE_KEY);
+  const needsQuestBootstrap = !stored || !('quests' in stored) || (stored?.quests?.length ?? 0) === 0;
   if (stored) {
     worldState = {
       ...defaultWorldState,
@@ -114,6 +126,7 @@ export const loadWorldState = (): WorldState => {
       traits: stored.traits ?? defaultWorldState.traits,
       avotLocations: { ...defaultWorldState.avotLocations, ...(stored.avotLocations ?? {}) },
       avotMoods: { ...defaultWorldState.avotMoods, ...(stored.avotMoods ?? {}) },
+      quests: stored.quests ?? [],
     };
   } else {
     worldState = { ...defaultWorldState };
@@ -132,6 +145,14 @@ export const loadWorldState = (): WorldState => {
     );
   }
 
+  if (needsQuestBootstrap) {
+    worldState = { ...worldState, quests: worldState.quests ?? [] };
+    persist();
+    ensureSeedQuestsInitialized();
+  }
+
+  loading = false;
+
   return getWorldState();
 };
 
@@ -140,7 +161,7 @@ export const saveWorldState = (): void => {
 };
 
 export const getWorldState = (): WorldState => {
-  if (!initialized) {
+  if (!initialized && !loading) {
     loadWorldState();
   }
   return cloneState(worldState);
@@ -161,6 +182,7 @@ export const updateWorldState = (updates: WorldStateUpdate): WorldState => {
     avotLocations: { ...worldState.avotLocations, ...(updates.avotLocations ?? {}) },
     avotMoods: { ...worldState.avotMoods, ...(updates.avotMoods ?? {}) },
     worldVersion: updates.worldVersion ?? worldState.worldVersion ?? FORTRESS_WORLD_VERSION,
+    quests: updates.quests ?? worldState.quests,
   };
   persist();
   return getWorldState();
